@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Projects Multiverse</title>
+  <meta name="description" content="A holonic, interactive 3D map of creative projects orbiting Planetary Council.">
+  <meta name="theme-color" content="#020805">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="rain" aria-hidden="true"></canvas>
+
+  <!-- ===================== DESKTOP: 3D ===================== -->
+  <div id="stage" hidden>
+    <div id="gl"></div>
+    <div id="labels" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-name">MARS ROBERTSON</div>
+        <div class="brand-sub">Holonic map of projects</div>
+      </div>
+      <div class="title">ENTER THE MULTIVERSE</div>
+      <nav class="topnav">
+        <button id="btn-reset" type="button" title="Reset view (Esc)">Reset view</button>
+        <a href="?view=list">List view</a>
+        <a href="https://planetarycouncil.org" target="_blank" rel="noopener">HQ ↗</a>
+      </nav>
+    </header>
+
+    <aside class="side-left" aria-label="Project index">
+      <p class="manifesto">ART · IDEAS · AI<br>MEMES · MAGIC · IMPACT</p>
+      <p class="intro">Every room is a whole and a part. Projects sit inside clusters, clusters orbit the HQ. Drag to orbit, scroll to zoom, click a cube to enter.</p>
+      <div id="filters" class="filters" role="group" aria-label="Filter by tag"></div>
+      <nav id="index" class="index"></nav>
+    </aside>
+
+    <aside id="panel" class="panel" aria-live="polite" hidden>
+      <button class="panel-close" type="button" aria-label="Close">×</button>
+      <div class="panel-num"></div>
+      <h2 class="panel-name"></h2>
+      <div class="panel-status"></div>
+      <p class="panel-tagline"></p>
+      <p class="panel-about"></p>
+      <div class="panel-tags"></div>
+      <div class="panel-links"></div>
+      <a class="panel-visit" target="_blank" rel="noopener">Enter project ↗</a>
+      <div class="panel-nav">
+        <button type="button" data-step="-1">← prev</button>
+        <span class="panel-hint">← → keys</span>
+        <button type="button" data-step="1">next →</button>
+      </div>
+    </aside>
+
+    <div class="legend">
+      <div><i class="sw sw-active"></i>active</div>
+      <div><i class="sw sw-awaiting"></i>awaiting deployment</div>
+      <div><i class="sw sw-done"></i>done</div>
+      <div><i class="sw sw-sale"></i>for sale</div>
+      <div class="legend-sep"></div>
+      <div><i class="ln ln-solid"></i>stated link</div>
+      <div><i class="ln ln-dash"></i>inferred link</div>
+      <div><i class="dot"></i>agent in transit</div>
+    </div>
+
+    <div class="status-box">
+      <div class="status-title">SYSTEM STATUS</div>
+      <div>HUMANITY 2.0</div>
+      <div class="status-line"><span id="status-text">LOADING…</span></div>
+      <div class="bar"><span id="status-bar"></span></div>
+    </div>
+
+    <footer class="mantra">
+      <div>TECHNOLOGY SERVES CONSCIOUSNESS</div>
+      <div>CONSCIOUSNESS SERVES LIFE</div>
+      <div>LIFE SERVES <span class="love">LOVE</span></div>
+    </footer>
+
+    <div class="here-box">
+      <div class="here-title">YOU ARE HERE</div>
+      <div id="here">THE MULTIVERSE</div>
+    </div>
+  </div>
+
+  <!-- ===================== MOBILE: LIST ===================== -->
+  <div id="list" hidden>
+    <header class="m-head">
+      <div class="brand-name">MARS ROBERTSON</div>
+      <div class="brand-sub">Projects multiverse · by priority</div>
+      <p class="m-mantra">Technology serves consciousness. Consciousness serves life. Life serves <span class="love">love</span>.</p>
+    </header>
+    <nav id="m-nav" class="m-nav" aria-label="Jump to project"></nav>
+    <main id="m-cards" class="m-cards"></main>
+    <footer class="m-foot">
+      <p>* connection inferred, not stated</p>
+      <a href="?view=3d">Open the 3D map</a> · best on a desktop
+    </footer>
+  </div>
+
+  <noscript><p style="color:#7f7;padding:2rem;font-family:monospace">This map needs JavaScript.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

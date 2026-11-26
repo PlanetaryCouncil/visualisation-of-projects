@@ -1,0 +1,173 @@
+{
+  "_readme": "Editorial layer on top of projects.json. projects.json stays the source of truth for what each project is; this file decides order, grouping and the connections that were left implicit. Edit freely.",
+  "relative_base": "",
+  "_relative_base_note": "Projects with a url starting with '/' (e.g. /basex) are resolved against this. Empty = same site that hosts this page. Set to e.g. https://planetarycouncil.org if those pages live there.",
+  "priority": [
+    "Planetary Council",
+    "Independent Tribunal",
+    "BaseX",
+    "Network State Genesis",
+    "Money from the Future",
+    "Ministry of Memes and Better Propaganda",
+    "Live Agent Fleet (Command & Control Dashboard)",
+    "Solarpunk Estates",
+    "Art Benchmark",
+    "Marsita the Ultra",
+    "Future Vision XPRIZE",
+    "AI Brain Farts",
+    "Laughter Scale",
+    "Selfie Gallery",
+    "Haiku Command-Line Poems",
+    "Publishing Pipeline",
+    "Personal Wiki",
+    "Dating Relating",
+    "Ultra Magic Hands",
+    "Legal Screenshot"
+  ],
+  "clusters": [
+    {
+      "id": "governance",
+      "label": "Governance",
+      "blurb": "The HQ and the institutions around it",
+      "center": [
+        0,
+        0,
+        0
+      ],
+      "radius": 14,
+      "tilt": [
+        0.22,
+        0,
+        0.06
+      ],
+      "members": [
+        "Planetary Council",
+        "Independent Tribunal",
+        "BaseX",
+        "Network State Genesis",
+        "Ministry of Memes and Better Propaganda",
+        "Legal Screenshot"
+      ]
+    },
+    {
+      "id": "imagination",
+      "label": "Imagination",
+      "blurb": "Art, money, music and futures",
+      "center": [
+        -30,
+        9,
+        -8
+      ],
+      "radius": 8.5,
+      "tilt": [
+        1.05,
+        0.35,
+        0.15
+      ],
+      "members": [
+        "Money from the Future",
+        "Art Benchmark",
+        "Marsita the Ultra",
+        "Future Vision XPRIZE",
+        "Publishing Pipeline"
+      ]
+    },
+    {
+      "id": "ai-lab",
+      "label": "AI Lab",
+      "blurb": "Agents and machine-made art, in the open",
+      "center": [
+        30,
+        9,
+        -8
+      ],
+      "radius": 8.5,
+      "tilt": [
+        1.05,
+        -0.35,
+        -0.15
+      ],
+      "members": [
+        "Live Agent Fleet (Command & Control Dashboard)",
+        "AI Brain Farts",
+        "Laughter Scale",
+        "Selfie Gallery",
+        "Haiku Command-Line Poems"
+      ]
+    },
+    {
+      "id": "life",
+      "label": "Life",
+      "blurb": "Homes, people, bodies, notes",
+      "center": [
+        0,
+        22,
+        -30
+      ],
+      "radius": 8,
+      "tilt": [
+        1.15,
+        0,
+        0
+      ],
+      "members": [
+        "Solarpunk Estates",
+        "Personal Wiki",
+        "Dating Relating",
+        "Ultra Magic Hands"
+      ]
+    }
+  ],
+  "inferred_links": [
+    {
+      "from": "Ministry of Memes and Better Propaganda",
+      "to": "Planetary Council",
+      "why": "Culture is the HQ's stated lever on governance"
+    },
+    {
+      "from": "Solarpunk Estates",
+      "to": "BaseX",
+      "why": "Regenerative homes are the kind of value BaseX tries to count"
+    },
+    {
+      "from": "Future Vision XPRIZE",
+      "to": "Money from the Future",
+      "why": "Both are imagination projects about futures"
+    },
+    {
+      "from": "Selfie Gallery",
+      "to": "Art Benchmark",
+      "why": "AI art feeding the collection"
+    },
+    {
+      "from": "Haiku Command-Line Poems",
+      "to": "Art Benchmark",
+      "why": "AI art feeding the collection"
+    },
+    {
+      "from": "Laughter Scale",
+      "to": "AI Brain Farts",
+      "why": "Both score things on a scale"
+    },
+    {
+      "from": "AI Brain Farts",
+      "to": "Live Agent Fleet (Command & Control Dashboard)",
+      "why": "Agents on the board log their own mistakes here"
+    },
+    {
+      "from": "Publishing Pipeline",
+      "to": "Live Agent Fleet (Command & Control Dashboard)",
+      "why": "Both are agent tooling"
+    },
+    {
+      "from": "Laughter Scale",
+      "to": "Ministry of Memes and Better Propaganda",
+      "why": "Humour as a carrier for ideas"
+    },
+    {
+      "from": "Personal Wiki",
+      "to": "Planetary Council",
+      "why": "Facts and sources behind the ideas"
+    }
+  ]
+}
