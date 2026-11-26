@@ -1,164 +1,77 @@
-// Entry point: loads data, decides between the 3D map (desktop) and the
-// scrolling list (mobile / no WebGL), and wires up the shared bits.
+// Visualisation layer only. All project data comes from the source
+// (the command dashboard export); nothing here adds or edits projects.
+//
+//   ?src=<url>      read projects from another URL (default: data/projects.json)
+//   ?base=<url>     prefix for project urls that start with "/" (e.g. /basex)
+//   ?view=3d|list   force a mode
 
-const STATUS_LABEL = {
-  'active': 'active',
-  'awaiting-deployment': 'awaiting deployment',
-  'done': 'done',
-  'for-sale': 'for sale',
-};
+const params = new URLSearchParams(location.search);
+const SOURCE = params.get('src') || 'data/projects.json';
+const RELATIVE_BASE = params.get('base') || '';
 
 export const slug = (s) => s.toLowerCase()
-  .replace(/\(.*?\)/g, '')
-  .replace(/&/g, 'and')
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-|-$/g, '');
+  .replace(/\(.*?\)/g, '').replace(/&/g, 'and')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export const shortName = (s) => s.replace(/\s*\(.*\)/, '');
+export const statusLabel = (s) => (s || '').replace(/-/g, ' ');
 
-export const statusLabel = (s) => STATUS_LABEL[s] || s;
+// Turn the source JSON into nodes + links. Order in the source array = priority.
+function buildModel({ hq, projects }) {
+  const nodes = projects.map((p, i) => ({
+    ...p,
+    id: slug(p.name),
+    rank: i,
+    href: p.url && p.url.startsWith('/') ? RELATIVE_BASE + p.url : p.url,
+    isCore: p.name === hq,
+    tags: [...new Set((p.tags || []).map((t) => t.toLowerCase()))],
+  }));
+  const byName = new Map(nodes.map((n) => [n.name, n]));
+  const core = nodes.find((n) => n.isCore) || nodes[0];
+  core.isCore = true;
 
-async function loadModel() {
-  const [projRes, layoutRes] = await Promise.all([
-    fetch('data/projects.json'), fetch('data/layout.json'),
-  ]);
-  const { hq, projects } = await projRes.json();
-  const layout = await layoutRes.json();
-
-  const byName = new Map(projects.map((p) => [p.name, p]));
-  const order = [...layout.priority.filter((n) => byName.has(n)),
-    ...projects.map((p) => p.name).filter((n) => !layout.priority.includes(n))];
-
-  const clusterOf = new Map();
-  for (const c of layout.clusters) for (const m of c.members) clusterOf.set(m, c.id);
-
-  const nodes = order.map((name, i) => {
-    const p = byName.get(name);
-    const url = p.url.startsWith('/') ? (layout.relative_base || '') + p.url : p.url;
-    return {
-      ...p,
-      id: slug(name),
-      rank: i,
-      num: String(i + 1).padStart(2, '0'),
-      href: url,
-      isHQ: name === hq,
-      cluster: clusterOf.get(name) || layout.clusters[0].id,
-      tags: [...new Set(p.tags.map((t) => t.toLowerCase()))],
-    };
-  });
-  // Emerging rooms: placeholders for autonomous projects that don't exist yet.
-  const em = layout.emerging;
-  for (let i = 0; em && i < em.count; i++) {
-    nodes.push({
-      name: `Emerging room ${i + 1}`, id: `emerging-${i + 1}`, isGhost: true,
-      rank: nodes.length, num: '··', tags: [], connects_to: [], status: 'emerging',
-      tagline: em.tagline, about: em.about, href: null, cluster: em.cluster,
-    });
-  }
-  const nodeByName = new Map(nodes.map((n) => [n.name, n]));
-
-  // Links: stated (connects_to) and inferred (layout.json). Deduplicated, undirected.
   const links = [];
   const seen = new Set();
-  const add = (a, b, kind, why) => {
-    const A = nodeByName.get(a), B = nodeByName.get(b);
+  const add = (A, B, kind) => {
     if (!A || !B || A === B) return;
     const key = [A.id, B.id].sort().join('|');
     if (seen.has(key)) return;
     seen.add(key);
-    links.push({ a: A, b: B, kind, why });
+    links.push({ a: A, b: B, kind });
   };
-  for (const n of nodes) for (const t of n.connects_to) add(n.name, t, 'stated');
-  for (const l of layout.inferred_links) add(l.from, l.to, 'inferred', l.why);
+  for (const n of nodes) for (const t of n.connects_to || []) add(n, byName.get(t), 'stated');
+  // Projects with no stated connection still belong to the whole: tie them to the core.
+  for (const n of nodes) if (!n.isCore && !links.some((l) => l.a === n || l.b === n)) add(core, n, 'root');
 
-  const hqNode = nodes.find((n) => n.isHQ);
-  return { hq: hqNode, nodes, links, clusters: layout.clusters };
+  return { core, nodes, links };
 }
 
-export function connectionsOf(model, node) {
-  return model.links
-    .filter((l) => l.a === node || l.b === node)
-    .map((l) => ({ other: l.a === node ? l.b : l.a, kind: l.kind, why: l.why }))
-    .sort((x, y) => (x.kind === y.kind ? x.other.rank - y.other.rank : x.kind === 'stated' ? -1 : 1));
-}
+export const neighbours = (model, n) => model.links
+  .filter((l) => l.kind === 'stated' && (l.a === n || l.b === n))
+  .map((l) => (l.a === n ? l.b : l.a))
+  .sort((x, y) => x.rank - y.rank);
 
-/* ---------------- matrix rain on the screen edges ---------------- */
-function startRain() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const c = document.getElementById('rain');
-  const ctx = c.getContext('2d');
-  const glyphs = 'アカサタナハマヤラワ0123456789ΣΔΩΨ∞◇△▽PCBXNS'.split('');
-  const size = 14;
-  let cols = [], w = 0, h = 0;
-  const resize = () => {
-    const dpr = Math.min(devicePixelRatio, 2);
-    w = innerWidth; h = innerHeight;
-    c.width = w * dpr; c.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    cols = Array.from({ length: Math.ceil(w / size) }, () => Math.random() * -h / size);
-  };
-  resize(); addEventListener('resize', resize);
-  let last = 0;
-  const tick = (t) => {
-    requestAnimationFrame(tick);
-    if (t - last < 70 || document.hidden) return;
-    last = t;
-    ctx.fillStyle = 'rgba(2, 8, 5, 0.16)';
-    ctx.fillRect(0, 0, w, h);
-    ctx.font = `${size - 2}px "Share Tech Mono", monospace`;
-    for (let i = 0; i < cols.length; i++) {
-      const y = cols[i] * size;
-      ctx.fillStyle = Math.random() < 0.04 ? '#d9ffe6' : '#1fbf62';
-      ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], i * size, y);
-      cols[i] = y > h && Math.random() > 0.975 ? 0 : cols[i] + 1;
-    }
-  };
-  requestAnimationFrame(tick);
-}
-
-/* ---------------- mobile / fallback list ---------------- */
+/* ---------- mobile / fallback list ---------- */
 function renderList(model) {
-  const root = document.getElementById('list');
-  root.hidden = false;
-  document.getElementById('rain').style.opacity = '.25';
-  const clusterLabel = Object.fromEntries(model.clusters.map((c) => [c.id, c.label]));
+  document.getElementById('list').hidden = false;
   const nav = document.getElementById('m-nav');
   const cards = document.getElementById('m-cards');
-
-  for (const n of model.nodes.filter((x) => !x.isGhost)) {
+  for (const n of model.nodes) {
     const a = document.createElement('a');
     a.href = `#${n.id}`;
-    a.textContent = `${n.num} ${n.name.replace(/\s*\(.*\)/, '')}`;
+    a.textContent = shortName(n.name);
     a.dataset.id = n.id;
     nav.append(a);
 
-    const conns = connectionsOf(model, n);
     const card = document.createElement('article');
-    card.className = 'm-card' + (n.isHQ ? ' hq' : '');
+    card.className = 'm-card' + (n.isCore ? ' core' : '');
     card.id = n.id;
-    card.innerHTML = `
-      <div class="m-top"><span class="m-num">${n.num}</span><span class="m-status st-${n.status}">${statusLabel(n.status)}</span></div>
-      <h2></h2>
-      <div class="m-cluster">${n.isHQ ? 'HQ' : clusterLabel[n.cluster] || ''}</div>
-      <p class="m-tagline"></p>
-      <p class="m-about"></p>
-      ${n.tags.length ? `<div class="m-tags">${n.tags.map((t) => `<span>#${t}</span>`).join('')}</div>` : ''}
-      ${conns.length ? `<p class="m-links">Connects to: ${conns.map((c) => `<a href="#${c.other.id}">${escapeHtml(c.other.name)}</a>${c.kind === 'inferred' ? '*' : ''}`).join(', ')}</p>` : ''}
-      <a class="m-visit" target="_blank" rel="noopener">Open ↗</a>`;
-    card.querySelector('h2').textContent = n.name;
-    card.querySelector('.m-tagline').textContent = n.tagline;
-    card.querySelector('.m-about').textContent = n.about;
+    card.innerHTML = `<h2><i class="st-dot st-${n.status}" title=""></i><span></span></h2><p class="m-tagline"></p><a class="m-visit" target="_blank" rel="noopener">Enter ↗</a>`;
+    card.querySelector('h2 span').textContent = n.name;
+    card.querySelector('.st-dot').title = statusLabel(n.status);
+    card.querySelector('.m-tagline').textContent = n.tagline || '';
     card.querySelector('.m-visit').href = n.href;
     cards.append(card);
   }
-
-  if (model.nodes.some((n) => n.isGhost)) {
-    const ghost = model.nodes.find((n) => n.isGhost);
-    const card = document.createElement('article');
-    card.className = 'm-card ghost';
-    card.innerHTML = `<div class="m-top"><span class="m-num">··</span><span class="m-status st-emerging">emerging</span></div><h2>Emerging rooms</h2><p class="m-about"></p>`;
-    card.querySelector('.m-about').textContent = ghost.about;
-    cards.append(card);
-  }
-
-  // Scroll-spy: highlight the chip of the card in view, and keep it visible in the strip.
   const chips = new Map([...nav.children].map((a) => [a.dataset.id, a]));
   let current = null;
   const io = new IntersectionObserver((entries) => {
@@ -175,8 +88,6 @@ function renderList(model) {
   cards.querySelectorAll('.m-card').forEach((c) => io.observe(c));
 }
 
-const escapeHtml = (s) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-
 function hasWebGL() {
   try {
     const c = document.createElement('canvas');
@@ -185,14 +96,11 @@ function hasWebGL() {
 }
 
 async function boot() {
-  const model = await loadModel();
-  const params = new URLSearchParams(location.search);
+  const res = await fetch(SOURCE);
+  if (!res.ok) throw new Error(`${SOURCE}: ${res.status}`);
+  const model = buildModel(await res.json());
   const forced = params.get('view');
-  const smallScreen = matchMedia('(max-width: 820px)').matches;
-  const want3D = forced === '3d' || (forced !== 'list' && !smallScreen);
-
-  startRain();
-
+  const want3D = forced === '3d' || (forced !== 'list' && !matchMedia('(max-width: 820px)').matches);
   if (want3D && hasWebGL()) {
     try {
       const { startScene } = await import('./scene.js');
@@ -209,5 +117,5 @@ async function boot() {
 boot().catch((err) => {
   console.error(err);
   document.body.insertAdjacentHTML('beforeend',
-    '<p style="color:#7f7;padding:2rem;font-family:monospace">Could not load project data. If you opened this file directly, serve the folder over HTTP (e.g. <code>python3 -m http.server</code>).</p>');
+    '<p style="color:#7f7;padding:2rem;font-family:monospace">Could not load project data. Serve this folder over HTTP (e.g. <code>python3 -m http.server</code>).</p>');
 });
