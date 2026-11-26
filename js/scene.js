@@ -85,6 +85,34 @@ function layout(model, saved) {
   for (const n of N) { n.start = n.p; delete n.p; delete n.v; }
 }
 
+// Where a line meets a surface: a small static burst (bright core, soft glow,
+// a few short rays) so the line ends in a touch of energy, not a cut.
+function splashTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.12, 'rgba(255,255,255,.85)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,.22)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  g.translate(32, 32);
+  for (let i = 0; i < 8; i++) {
+    g.rotate(Math.PI / 4);
+    const len = i % 2 ? 17 : 26;
+    const ray = g.createLinearGradient(0, 0, len, 0);
+    ray.addColorStop(0, 'rgba(255,255,255,.7)');
+    ray.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = ray;
+    g.fillRect(0, -0.6, len, 1.2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function glowTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -160,6 +188,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   };
 
   const glow = glowTexture();
+  const splash = splashTexture();
 
   /* ---------- stars (static) ---------- */
   {
@@ -235,7 +264,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   /* ---------- lines: single = parent -> child, double = siblings ---------- */
   const LINE_PX = 1.3;
   const LINE_BASE = 0.7;
-  const GAP_PX = 2.6;                // half the gap between the two strands of a sibling line
+  const GAP_PX = 1.4;                // half the gap between the two strands of a sibling line
   const incident = new Map(model.nodes.map((n) => [n, []]));
   // The curve from A's centre to B's centre, trimmed so it starts and ends
   // where it crosses each project's surface.
@@ -264,6 +293,8 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   const tA = new THREE.Vector3(), vA = new THREE.Vector3(), nA = new THREE.Vector3();
   function redrawLink(l) {
     const pts = curvePts(l.a, l.b);
+    l.splashes[0].position.copy(pts[0]);
+    l.splashes[1].position.copy(pts[pts.length - 1]);
     if (l.kind === 'parent') { l.lines[0].geometry.setPositions(flat(pts)); return; }
     const left = [], right = [];
     pts.forEach((p, i) => {
@@ -280,12 +311,18 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     l.base = LINE_BASE;
     l.lines = Array.from({ length: l.kind === 'parent' ? 1 : 2 }, () =>
       new Line2(new LineGeometry(), fat({ color: NEON, opacity: LINE_BASE, linewidth: LINE_PX })));
+    l.splashes = [0, 1].map(() => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: splash, color: NEON, transparent: true, opacity: LINE_BASE, depthWrite: false, blending: THREE.AdditiveBlending }));
+      sp.scale.setScalar(1.3);
+      return sp;
+    });
     redrawLink(l);
-    for (const ln of l.lines) scene.add(ln);
+    for (const ln of [...l.lines, ...l.splashes]) scene.add(ln);
     incident.get(l.a).push(l);
     incident.get(l.b).push(l);
   }
   function eraseLink(l) {
+    for (const sp of l.splashes) { scene.remove(sp); sp.material.dispose(); }
     for (const ln of l.lines) {
       scene.remove(ln);
       ln.geometry.dispose();
@@ -333,7 +370,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     }
     for (const l of model.links) {
       const o = !focus ? l.base : (l.a === focus || l.b === focus) ? 1 : l.base * 0.15;
-      for (const ln of l.lines) ln.material.opacity = o;
+      for (const ln of [...l.lines, ...l.splashes]) ln.material.opacity = o;
     }
     invalidate();
   }
