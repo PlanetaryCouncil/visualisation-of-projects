@@ -4,12 +4,12 @@
 //   ?src=<url>      read projects from another URL (default: data/projects.json)
 //   ?base=<url>     prefix for project urls that start with "/" (e.g. /basex)
 //   ?view=3d|list   force a mode (default: list on phones, 3D on wider screens)
-//   ?pos=<url>      saved 3D positions (default: data/positions.json)
+//   ?layout=<url>   saved 3D positions and sizes (default: data/layout.json)
 
 const params = new URLSearchParams(location.search);
 const SOURCE = params.get('src') || 'data/projects.json';
 const RELATIVE_BASE = params.get('base') || '';
-const POSITIONS = params.get('pos') || 'data/positions.json';
+const LAYOUT = params.get('layout') || 'data/layout.json';
 
 export const slug = (s) => s.toLowerCase()
   .replace(/\(.*?\)/g, '').replace(/&/g, 'and')
@@ -31,36 +31,28 @@ function buildModel({ hq, projects }) {
   const core = nodes.find((n) => n.isCore) || nodes[0];
   core.isCore = true;
 
+  // Two kinds of line: 'parent' (part_of: this project is part of that one)
+  // and 'sibling' (connects_to). A parent line wins over a sibling line.
   const links = [];
-  const seen = new Set();
+  const index = new Map();
   const add = (A, B, kind) => {
     if (!A || !B || A === B) return;
     const key = [A.id, B.id].sort().join('|');
-    if (seen.has(key)) return;
-    seen.add(key);
-    links.push({ a: A, b: B, kind });
+    const had = index.get(key);
+    if (had && (had.kind === 'parent' || kind === 'sibling')) return;
+    if (had) links.splice(links.indexOf(had), 1);
+    const l = { a: A, b: B, kind };   // for parent lines: a = parent, b = child
+    index.set(key, l);
+    links.push(l);
   };
-  for (const n of nodes) for (const t of n.connects_to || []) add(n, byName.get(t), 'stated');
-  // A project with no stated connection is tied to the hub of its cluster
-  // (the member with the most connections), or to the core if it has no cluster.
-  const degree = (n) => links.filter((l) => l.a === n || l.b === n).length;
-  const hubOf = new Map();
-  for (const n of nodes) {
-    if (!n.cluster) continue;
-    const h = hubOf.get(n.cluster);
-    if (!h || degree(n) > degree(h)) hubOf.set(n.cluster, n);
-  }
-  for (const n of nodes) {
-    if (n.isCore || degree(n)) continue;
-    const hub = (n.cluster && hubOf.get(n.cluster)) || core;
-    add(hub === n ? core : hub, n, 'root');
-  }
+  for (const n of nodes) for (const t of n.part_of || []) add(byName.get(t), n, 'parent');
+  for (const n of nodes) for (const t of n.connects_to || []) add(n, byName.get(t), 'sibling');
 
   return { core, nodes, links };
 }
 
 export const neighbours = (model, n) => model.links
-  .filter((l) => l.kind === 'stated' && (l.a === n || l.b === n))
+  .filter((l) => l.a === n || l.b === n)
   .map((l) => (l.a === n ? l.b : l.a))
   .sort((x, y) => x.rank - y.rank);
 
@@ -118,8 +110,8 @@ async function boot() {
   const want3D = forced === '3d' || (forced !== 'list' && !matchMedia('(max-width: 820px)').matches);
   if (want3D && hasWebGL()) {
     try {
-      const { startScene } = await import('./scene.js?v=6');
-      await startScene(model, { neighbours, shortName, statusLabel, positionsUrl: POSITIONS });
+      const { startScene } = await import('./scene.js?v=7');
+      await startScene(model, { neighbours, shortName, statusLabel, layoutUrl: LAYOUT });
       return;
     } catch (err) {
       console.error('3D failed, falling back to list', err);

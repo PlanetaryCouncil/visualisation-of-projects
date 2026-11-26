@@ -53,7 +53,7 @@
     {
       "name": "BaseX.com",
       "cluster": "governance",
-      "status": "awaiting-deployment",
+      "status": "active",
       "tagline": "A new definition of value — triple bottom line (people, planet, prosperity)",
       "url": "/basex",
       "tags": [
@@ -120,7 +120,7 @@
     {
       "name": "Future Vision XPRIZE",
       "cluster": "art",
-      "status": "done",
+      "status": "active",
       "tagline": "Imagination athlete — expanding the horizons of the imaginable",
       "url": "/future-vision-xprize",
       "tags": [
@@ -192,7 +192,7 @@
     {
       "name": "Solarpunk Estates",
       "cluster": "mars",
-      "status": "awaiting-deployment",
+      "status": "active",
       "tagline": "Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun",
       "url": "/solarpunk-estates",
       "tags": [
@@ -327,6 +327,39 @@
       ],
       "about": "Music and culture, spreading the vibes. Six songs out; the album in progress is Memories From Base Reality. Useful: listen, share, remix.",
       "mars_wrote": "music culture, spreading the vibes"
+    },
+    {
+      "name": "Wordsmithing",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "",
+      "url": "https://wordsmithing.org",
+      "tags": [
+        "art"
+      ],
+      "connects_to": []
+    },
+    {
+      "name": "Ministry of Fixing Civilisation",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "Fixing civilisation, one small problem at a time",
+      "url": "https://ux.planetarycouncil.org",
+      "tags": [
+        "governance"
+      ],
+      "connects_to": []
+    },
+    {
+      "name": "The War Crimes Safari",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "Documented war crimes in Gaza and the West Bank, 2023–2026, every source dated and named",
+      "url": "https://warcrimes.planetarycouncil.org",
+      "tags": [
+        "governance"
+      ],
+      "connects_to": []
     }
   ]
 }

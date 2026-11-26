@@ -1,22 +1,36 @@
 // The 3D map, built for speed: no post-processing, no idle animation, and a
-// frame is drawn only when something changed (orbit, zoom, hover, camera move).
+// frame is drawn only when something changed (orbit, zoom, hover, edit).
 //
-// Layout: positions saved in data/positions.json win. Any project without a
-// saved position is placed by a small force simulation from the source data:
-//   - connects_to = strong springs and visible lines,
-//   - same cluster = medium springs,
-//   - shared tags = weak springs,
-//   - everything repels a little; the core (hq) sits at the centre.
+// Lines come from the source data:
+//   part_of     -> solid "parent" line (this project is part of that one)
+//   connects_to -> dashed "sibling" line
+// Positions and sizes saved in data/layout.json win; any project missing
+// there is placed by a small force simulation (lines, cluster, shared tags).
 //
-// Editing: hold Alt (Option on a Mac) and drag a project. It moves in the plane
-// facing you; orbit the view to move it in depth. A box at the bottom then holds
-// every position as JSON, ready to paste into data/positions.json.
+// Editing (press E, or hold Alt):
+//   Alt + drag a project          move it (in the plane facing you)
+//   Alt + scroll over a project   make it bigger / smaller (thicker border)
+//   E opens the editor box, where you can also pick a line tool:
+//     parent  -> drag from the parent to the child
+//     sibling -> drag from one project to the other
+//   Dragging the same line again removes it.
+// The box holds the whole arrangement as JSON to paste back into the data.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-const STATUS_COLOR = { 'active': 0x39ff88, 'awaiting-deployment': 0xffc857, 'done': 0x5ce1ff, 'for-sale': 0xff5c8a };
 const NEON = 0x39ff88;
 const LOVE = 0xff3b3b;
+const BORDER_PX = 1.3;                       // border width at size 1
+const SIZE_MIN = 0.4, SIZE_MAX = 4;
+const DRAFT_KEY = 'projects-multiverse:draft-v2';
+
+const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch { return null; } };
+const round = (v) => Math.round(v * 10) / 10;
 
 function seeded(str) {
   let h = 1779033703 ^ str.length;
@@ -28,46 +42,46 @@ function layout(model, saved) {
   const N = model.nodes;
   const rnd = seeded(N.map((n) => n.name).join('|'));
   for (const n of N) {
-    const s = saved[n.name];
-    n.fixed = Array.isArray(s) && s.length === 3 || n.isCore;
-    n.p = Array.isArray(s) && s.length === 3 ? new THREE.Vector3(...s)
-      : n.isCore ? new THREE.Vector3()
+    const s = saved[n.name]?.pos;
+    const ok = Array.isArray(s) && s.length === 3;
+    n.fixed = ok || n.isCore;
+    n.p = ok ? new THREE.Vector3(...s) : n.isCore ? new THREE.Vector3()
       : new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(30);
     n.v = new THREE.Vector3();
   }
-  if (N.every((n) => n.fixed)) { for (const n of N) { n.pos = n.p; delete n.p; delete n.v; } return; }
-  const springs = [];
-  for (const l of model.links) springs.push({ a: l.a, b: l.b, rest: l.kind === 'stated' ? 8 : 9, k: l.kind === 'stated' ? 0.06 : 0.04 });
-  for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
-    const shared = N[i].tags.filter((t) => N[j].tags.includes(t)).length;
-    const same = N[i].cluster && N[i].cluster === N[j].cluster;
-    if (same) springs.push({ a: N[i], b: N[j], rest: 9, k: 0.03 });
-    else if (shared) springs.push({ a: N[i], b: N[j], rest: 12, k: 0.006 * shared });
-  }
-  const d = new THREE.Vector3();
-  for (let it = 0; it < 600; it++) {
-    const cool = 1 - it / 600;
+  if (N.some((n) => !n.fixed)) {
+    const springs = [];
+    for (const l of model.links) springs.push({ a: l.a, b: l.b, rest: l.kind === 'parent' ? 7 : 9, k: l.kind === 'parent' ? 0.07 : 0.05 });
     for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
-      d.subVectors(N[i].p, N[j].p);
-      const dist2 = Math.max(d.lengthSq(), 0.5);
-      d.multiplyScalar(90 / dist2 / Math.sqrt(dist2));
-      N[i].v.add(d); N[j].v.sub(d);
+      const shared = N[i].tags.filter((t) => N[j].tags.includes(t)).length;
+      if (N[i].cluster && N[i].cluster === N[j].cluster) springs.push({ a: N[i], b: N[j], rest: 9, k: 0.03 });
+      else if (shared) springs.push({ a: N[i], b: N[j], rest: 12, k: 0.006 * shared });
     }
-    for (const s of springs) {
-      d.subVectors(s.b.p, s.a.p);
-      const len = d.length() || 0.01;
-      d.multiplyScalar(((len - s.rest) * s.k) / len);
-      s.a.v.add(d); s.b.v.sub(d);
-    }
-    for (const n of N) {
-      n.v.addScaledVector(n.p, -0.009);
-      n.v.y -= n.p.y * 0.006;
-      if (n.fixed) { n.v.set(0, 0, 0); continue; }
-      n.v.multiplyScalar(0.82);
-      n.p.addScaledVector(n.v, 0.6 + cool);
+    const d = new THREE.Vector3();
+    for (let it = 0; it < 600; it++) {
+      const cool = 1 - it / 600;
+      for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
+        d.subVectors(N[i].p, N[j].p);
+        const dist2 = Math.max(d.lengthSq(), 0.5);
+        d.multiplyScalar(90 / dist2 / Math.sqrt(dist2));
+        N[i].v.add(d); N[j].v.sub(d);
+      }
+      for (const s of springs) {
+        d.subVectors(s.b.p, s.a.p);
+        const len = d.length() || 0.01;
+        d.multiplyScalar(((len - s.rest) * s.k) / len);
+        s.a.v.add(d); s.b.v.sub(d);
+      }
+      for (const n of N) {
+        if (n.fixed) { n.v.set(0, 0, 0); continue; }
+        n.v.addScaledVector(n.p, -0.009);
+        n.v.y -= n.p.y * 0.006;
+        n.v.multiplyScalar(0.82);
+        n.p.addScaledVector(n.v, 0.6 + cool);
+      }
     }
   }
-  for (const n of N) { n.pos = n.p; delete n.p; delete n.v; }
+  for (const n of N) { n.start = n.p; delete n.p; delete n.v; }
 }
 
 function glowTexture() {
@@ -102,37 +116,41 @@ function heartGeometry() {
   return geo;
 }
 
-const DRAFT_KEY = 'projects-multiverse:positions-draft';
-const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch { return null; } };
-
-export async function startScene(model, { neighbours, shortName, statusLabel, positionsUrl }) {
+export async function startScene(model, { neighbours, shortName, statusLabel, layoutUrl }) {
   let saved = {};
   try {
-    const r = await fetch(positionsUrl, { cache: 'no-cache' });
+    const r = await fetch(layoutUrl, { cache: 'no-cache' });
     if (r.ok) saved = await r.json();
-  } catch { /* no saved positions: everything is auto-placed */ }
+  } catch { /* nothing saved: everything is auto-placed */ }
+  const byName = new Map(model.nodes.map((n) => [n.name, n]));
   const draft = readDraft();
-  if (draft) saved = { ...saved, ...draft };
+  if (draft?.layout) saved = { ...saved, ...draft.layout };
+  if (Array.isArray(draft?.lines)) {
+    model.links = draft.lines
+      .map(([a, b, kind]) => ({ a: byName.get(a), b: byName.get(b), kind }))
+      .filter((l) => l.a && l.b && (l.kind === 'parent' || l.kind === 'sibling'));
+  }
 
   document.getElementById('stage').hidden = false;
   const host = document.getElementById('gl');
   const labelsEl = document.getElementById('labels');
   layout(model, saved);
 
-  const radii = model.nodes.map((n) => n.pos.length()).sort((a, b) => a - b);
+  const radii = model.nodes.map((n) => n.start.length()).sort((a, b) => a - b);
   const R = radii[Math.floor(radii.length * 0.85)] + 4;
-  const centre = model.nodes.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(model.nodes.length);
+  const centre = model.nodes.reduce((acc, n) => acc.add(n.start), new THREE.Vector3()).divideScalar(model.nodes.length);
   const HOME = { pos: centre.clone().add(new THREE.Vector3(0, R * 0.5, R * 1.75)), target: centre };
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   host.append(renderer.domElement);
+  let W = innerWidth, H = innerHeight;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020805);
   scene.fog = new THREE.FogExp2(0x020805, 0.005);
-  const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1500);
+  const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 1500);
   camera.position.copy(HOME.pos);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -142,9 +160,18 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
   controls.maxDistance = R * 5;
   controls.maxPolarAngle = Math.PI * 0.85;
 
+  // Fat-line materials need the canvas size in pixels.
+  const fatMaterials = new Set();
+  const fat = (opts) => {
+    const m = new LineMaterial({ transparent: true, ...opts });
+    m.resolution.set(W, H);
+    fatMaterials.add(m);
+    return m;
+  };
+
   const glow = glowTexture();
 
-  /* ---------- environment (static) ---------- */
+  /* ---------- stars (static) ---------- */
   {
     const n = 1200, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
@@ -156,44 +183,25 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
     scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x7dffb0, size: 0.9, transparent: true, opacity: 0.45, fog: false })));
   }
 
-  /* ---------- cluster names (no shells) ---------- */
-  const groups = [];
-  const byCluster = new Map();
-  for (const n of model.nodes) if (n.cluster) byCluster.set(n.cluster, [...(byCluster.get(n.cluster) || []), n]);
-  for (const [name, members] of byCluster) {
-    if (members.length < 2) continue;
-    const el = document.createElement('div');
-    el.className = 'label group show';
-    el.textContent = name;
-    labelsEl.append(el);
-    groups.push({ members, el, top: new THREE.Vector3() });
-  }
-  const placeGroups = () => {
-    for (const g of groups) {
-      const c = g.members.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(g.members.length);
-      const r = Math.max(...g.members.map((n) => n.pos.distanceTo(c)));
-      g.top.copy(c).y += r + 2;
-    }
-  };
-
-  /* ---------- nodes ---------- */
+  /* ---------- nodes: all one colour; size = attention ---------- */
   const pickables = [];
   for (const n of model.nodes) {
-    const color = new THREE.Color(n.isCore ? NEON : STATUS_COLOR[n.status] || NEON);
     const size = n.isCore ? 4.4 : Math.max(1.6, 2.8 - n.rank * 0.05);
     n.size = size;
+    n.k = THREE.MathUtils.clamp(Number(saved[n.name]?.size) || 1, SIZE_MIN, SIZE_MAX);
     const g = new THREE.Group();
-    g.position.copy(n.pos);
+    g.position.copy(n.start);
     g.rotation.set(0.15, (n.rank * 0.7) % Math.PI, 0);
     const box = new THREE.BoxGeometry(size, size, size);
-    const face = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, depthWrite: false }));
+    const face = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.08, depthWrite: false }));
     face.userData.node = n;
     pickables.push(face);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1 }));
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const borderMat = fat({ color: NEON, linewidth: BORDER_PX * n.k, opacity: 1 });
+    const border = new LineSegments2(new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(box)), borderMat);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: NEON, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
     halo.scale.setScalar(size * 2);
-    g.add(face, edges, halo);
-    const mats = [{ m: face.material, base: 0.08 }, { m: edges.material, base: 1 }, { m: halo.material, base: 0.25 }];
+    g.add(face, border, halo);
+    const mats = [{ m: face.material, base: 0.08 }, { m: borderMat, base: 1 }, { m: halo.material, base: 0.25 }];
     if (n.isCore) {
       halo.material.opacity = mats[2].base = 0.05;
       const heart = new THREE.Mesh(heartGeometry(), new THREE.MeshBasicMaterial({ color: LOVE }));
@@ -210,46 +218,59 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
       g.add(inner);
       mats.push({ m: inner.material, base: 0.6 });
     }
-    Object.assign(n, { obj: g, mats });
+    Object.assign(n, { obj: g, mats, borderMat });
     n.pos = g.position;              // one vector: moving the group moves the project
     scene.add(g);
   }
+  const applySize = (n, focus) => {
+    n.obj.scale.setScalar(n.k * (n === focus ? 1.12 : 1));
+    n.borderMat.linewidth = BORDER_PX * n.k * (n === focus ? 1.3 : 1);
+  };
 
-  /* ---------- links ---------- */
-  const links = [];
+  /* ---------- lines: solid = parent, dashed = sibling ---------- */
+  const STYLE = {
+    parent: { linewidth: 2.4, base: 0.85, dashed: false },
+    sibling: { linewidth: 1.2, base: 0.55, dashed: true, dashSize: 0.7, gapSize: 0.6 },
+  };
   const incident = new Map(model.nodes.map((n) => [n, []]));
-  const curvePoints = (A, B) => {
+  const curve = (A, B) => {
     const ctrl = A.clone().lerp(B, 0.5).add(new THREE.Vector3(0, A.distanceTo(B) * 0.2, 0));
-    return new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24);
+    return new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24).flatMap((p) => [p.x, p.y, p.z]);
   };
-  const redrawLink = (e) => {
-    const attr = e.line.geometry.attributes.position;
-    curvePoints(e.a.pos, e.b.pos).forEach((p, i) => attr.setXYZ(i, p.x, p.y, p.z));
-    attr.needsUpdate = true;
-    e.line.geometry.computeBoundingSphere();
-  };
-  for (const l of model.links) {
-    const pts = curvePoints(l.a.pos, l.b.pos);
-    const base = l.kind === 'stated' ? 0.6 : 0.18;
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: l.kind === 'stated' ? NEON : 0x2bd36f, transparent: true, opacity: base }));
-    scene.add(line);
-    const e = { ...l, line, base };
-    links.push(e);
-    incident.get(l.a).push(e);
-    incident.get(l.b).push(e);
+  function redrawLink(l) {
+    l.line.geometry.setPositions(curve(l.a.pos, l.b.pos));
+    l.line.computeLineDistances();
   }
+  function drawLink(l) {
+    const { base, ...matOpts } = STYLE[l.kind];
+    l.base = base;
+    l.line = new Line2(new LineGeometry(), fat({ color: NEON, opacity: base, ...matOpts }));
+    redrawLink(l);
+    scene.add(l.line);
+    incident.get(l.a).push(l);
+    incident.get(l.b).push(l);
+  }
+  function eraseLink(l) {
+    scene.remove(l.line);
+    l.line.geometry.dispose();
+    fatMaterials.delete(l.line.material);
+    l.line.material.dispose();
+    for (const n of [l.a, l.b]) incident.set(n, incident.get(n).filter((x) => x !== l));
+    model.links.splice(model.links.indexOf(l), 1);
+  }
+  model.links.forEach(drawLink);
 
-  /* ---------- labels ---------- */
+  /* ---------- labels: always on ---------- */
   const labelFor = new Map();
   for (const n of model.nodes) {
     const el = document.createElement('div');
     el.className = 'label show' + (n.isCore ? ' core' : '');
     el.textContent = shortName(n.name);
     el.addEventListener('pointerenter', () => setHover(n));
-    el.addEventListener('pointerleave', () => setHover(null));
-    el.addEventListener('click', (ev) => { if (!ev.altKey) select(n); });
-    el.addEventListener('pointerdown', (ev) => { if (ev.altKey) startDrag(n, ev); });
+    el.addEventListener('pointerleave', () => { if (!drag) setHover(null); });
+    el.addEventListener('pointerdown', (ev) => { if (beginEdit(n, ev)) ev.stopPropagation(); });
+    el.addEventListener('click', () => { if (!justEdited) select(n); });
+    el.addEventListener('wheel', (ev) => onWheel(ev, n), { passive: false });
     labelsEl.append(el);
     labelFor.set(n, el);
   }
@@ -268,12 +289,11 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
       n.lit = lit.has(n);
       const v = !focus || n.lit ? 1 : 0.15;
       for (const { m, base } of n.mats) m.opacity = base * v;
-      n.obj.scale.setScalar(n === focus ? 1.15 : 1);
+      applySize(n, focus);
       labelFor.get(n).classList.toggle('hot', n === focus);
       labelFor.get(n).classList.toggle('dim', !!focus && !n.lit);
     }
-    for (const e of links) e.line.material.opacity = !focus ? e.base : (e.a === focus || e.b === focus) ? 1 : e.base * 0.15;
-    for (const g of groups) g.el.classList.toggle('show', !focus || g.members.includes(focus));
+    for (const l of model.links) l.line.material.opacity = !focus ? l.base : (l.a === focus || l.b === focus) ? 1 : l.base * 0.15;
     invalidate();
   }
   function setHover(n) {
@@ -293,7 +313,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
     const dir = camera.position.clone().sub(controls.target).normalize();
     dir.y = THREE.MathUtils.clamp(dir.y, 0.12, 0.55);
     dir.normalize();
-    const dist = n.isCore ? 30 : 18 + n.size * 2.5;
+    const dist = n.isCore ? 30 : 18 + n.size * n.k * 2.5;
     const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
     const target = n.pos.clone().add(right.multiplyScalar(dist * 0.2));
     flyTo(target.clone().add(dir.multiplyScalar(dist)), target);
@@ -304,7 +324,6 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
   function select(n) {
     selected = n;
     panel.hidden = false;
-    panel.querySelector('.panel-kicker').className = `panel-kicker st-${n.status}`;
     panel.querySelector('.panel-status').textContent = n.isCore ? 'global governance' : statusLabel(n.status);
     panel.querySelector('.panel-name').textContent = n.name;
     panel.querySelector('.panel-tagline').textContent = n.tagline || '';
@@ -333,105 +352,200 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
   };
   panel.querySelector('.panel-close').addEventListener('click', () => deselect(true));
   document.getElementById('btn-reset').addEventListener('click', () => deselect(true));
-  addEventListener('keydown', (e) => {
-    if (e.target.closest?.('textarea, input')) return;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
-    else if (e.key === 'Escape') deselect(true);
-    else if (e.key === 'Alt') e.preventDefault();   // keep Firefox's menu bar from grabbing focus
-  });
 
-  /* ---------- picking (throttled to one raycast per frame) ---------- */
+  /* ---------- picking ---------- */
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  let down = null, pendingMove = null;
-  const pick = (ev) => {
+  const aim = (ev) => {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
+  };
+  const pick = (ev) => {
+    aim(ev);
     const hit = ray.intersectObjects(pickables, false)[0];
     return hit ? hit.object.userData.node : null;
   };
-  const el = renderer.domElement;
-  el.addEventListener('pointermove', (ev) => { if (!down && !drag) pendingMove = ev; });
+  const nodeUnder = (ev) => {
+    const label = document.elementFromPoint(ev.clientX, ev.clientY);
+    const fromLabel = label && [...labelFor].find(([, el]) => el === label)?.[0];
+    return fromLabel || pick(ev);
+  };
 
-  /* ---------- editing: Alt + drag moves a project ---------- */
-  let drag = null;
+  /* ---------- editing ---------- */
+  const editor = document.getElementById('editor');
+  const editorText = editor.querySelector('textarea');
+  let tool = 'move';
+  let drag = null;           // { n, mode: 'move' | 'parent' | 'sibling', offset }
+  let justEdited = false;
   const plane = new THREE.Plane();
   const hitPoint = new THREE.Vector3();
-  const rayAt = (ev) => {
-    const r = renderer.domElement.getBoundingClientRect();
-    ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
-    ray.setFromCamera(ndc, camera);
-    return ray.ray.intersectPlane(plane, hitPoint);
+  const preview = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
+  preview.visible = false;
+  preview.frustumCulled = false;
+  scene.add(preview);
+  const setPreviewEnd = (i, v) => {
+    preview.geometry.attributes.position.setXYZ(i, v.x, v.y, v.z);
+    preview.geometry.attributes.position.needsUpdate = true;
   };
-  function startDrag(n, ev) {
+
+  const onPlane = (ev) => { aim(ev); return ray.ray.intersectPlane(plane, hitPoint); };
+
+  // Returns true when the pointer-down started an edit (so orbit/select stay out of it).
+  function beginEdit(n, ev) {
+    const mode = ev.altKey ? 'move' : !editor.hidden ? tool : null;
+    if (!mode || ev.button !== 0) return false;
     ev.preventDefault();
     controls.enabled = false;
     plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()), n.pos);
-    const hit = rayAt(ev);
-    drag = { n, offset: hit ? n.pos.clone().sub(hit) : new THREE.Vector3() };
+    const hit = onPlane(ev);
+    drag = { n, mode, offset: hit ? n.pos.clone().sub(hit) : new THREE.Vector3() };
+    if (mode !== 'move') {
+      setPreviewEnd(0, n.pos);
+      setPreviewEnd(1, n.pos);
+      preview.visible = true;
+    }
     setHover(n);
+    return true;
   }
   addEventListener('pointermove', (ev) => {
-    if (!drag) return;
-    if (!rayAt(ev)) return;
-    drag.n.pos.copy(hitPoint).add(drag.offset);
-    for (const e of incident.get(drag.n)) redrawLink(e);
-    placeGroups();
+    if (!drag || !onPlane(ev)) return;
+    if (drag.mode === 'move') {
+      drag.n.pos.copy(hitPoint).add(drag.offset);
+      for (const l of incident.get(drag.n)) redrawLink(l);
+    } else {
+      const over = nodeUnder(ev);
+      setPreviewEnd(1, over && over !== drag.n ? over.pos : hitPoint);
+    }
     invalidate();
   });
-  addEventListener('pointerup', () => {
+  addEventListener('pointerup', (ev) => {
     if (!drag) return;
+    const { n, mode } = drag;
     drag = null;
     controls.enabled = true;
+    preview.visible = false;
+    if (mode !== 'move') {
+      const target = nodeUnder(ev);
+      if (target && target !== n) toggleLine(n, target, mode);
+    }
+    justEdited = true;
+    setTimeout(() => { justEdited = false; }, 0);
     saveDraft();
+    refreshFocus();
   });
 
-  const editor = document.getElementById('editor');
-  const editorText = editor.querySelector('textarea');
-  const snapshot = () => Object.fromEntries(model.nodes.map((n) =>
-    [n.name, n.pos.toArray().map((v) => Math.round(v * 10) / 10)]));
+  function toggleLine(A, B, kind) {
+    const had = model.links.find((l) => (l.a === A && l.b === B) || (l.a === B && l.b === A));
+    const sameAgain = had && had.kind === kind && (kind === 'sibling' || had.a === A);
+    if (had) eraseLink(had);
+    if (!sameAgain) {
+      const l = { a: A, b: B, kind };     // parent line: a = parent, b = child
+      model.links.push(l);
+      drawLink(l);
+    }
+  }
+
+  let wheelTarget = null, wheelAt = 0;
+  function onWheel(ev, n) {
+    if (!ev.altKey && editor.hidden) return;
+    // Keep resizing the same project while the wheel keeps turning, even after
+    // it has grown out from under the pointer.
+    if (performance.now() - wheelAt < 400 && wheelTarget) n = wheelTarget;
+    n = n || pick(ev);
+    if (!n) return;               // over empty space: normal zoom
+    wheelTarget = n;
+    wheelAt = performance.now();
+    ev.preventDefault();
+    ev.stopPropagation();
+    n.k = THREE.MathUtils.clamp(n.k * (ev.deltaY < 0 ? 1.1 : 1 / 1.1), SIZE_MIN, SIZE_MAX);
+    refreshFocus();
+    clearTimeout(onWheel.t);
+    onWheel.t = setTimeout(saveDraft, 250);
+  }
+  // Capture phase on the parent, so a resize never reaches OrbitControls' zoom.
+  host.addEventListener('wheel', (ev) => onWheel(ev), { passive: false, capture: true });
+
+  const snapshot = () => ({
+    layout: Object.fromEntries(model.nodes.map((n) => [n.name, { pos: n.pos.toArray().map(round), size: round(n.k) }])),
+    lines: model.links.map((l) => [l.a.name, l.b.name, l.kind]),
+  });
+  function exportText() {
+    const s = snapshot();
+    const part_of = {}, connects_to = {};
+    for (const [a, b, kind] of s.lines) {
+      if (kind === 'parent') (part_of[b] ||= []).push(a);
+      else (connects_to[a] ||= []).push(b);
+    }
+    const rows = (o) => Object.entries(o).map(([k, v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(',\n');
+    return `{\n  "layout": {\n${rows(s.layout)}\n  },\n  "part_of": {\n${rows(part_of)}\n  },\n  "connects_to": {\n${rows(connects_to)}\n  }\n}`;
+  }
   function showEditor() {
     editor.hidden = false;
-    editorText.value = JSON.stringify(snapshot(), null, 0).replace(/\],"/g, '],\n"');
+    editorText.value = exportText();
   }
   function saveDraft() {
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot())); } catch { /* private mode */ }
     showEditor();
   }
+  const toolButtons = [...editor.querySelectorAll('[data-tool]')];
+  const setTool = (t) => {
+    tool = t;
+    for (const b of toolButtons) b.classList.toggle('on', b.dataset.tool === t);
+  };
+  for (const b of toolButtons) b.addEventListener('click', () => setTool(b.dataset.tool));
+  setTool('move');
   editor.querySelector('.ed-copy').addEventListener('click', async () => {
     editorText.select();
     try { await navigator.clipboard.writeText(editorText.value); } catch { document.execCommand('copy'); }
-    editor.querySelector('.ed-copy').textContent = 'copied';
-    setTimeout(() => { editor.querySelector('.ed-copy').textContent = 'copy'; }, 1200);
+    const b = editor.querySelector('.ed-copy');
+    b.textContent = 'copied';
+    setTimeout(() => { b.textContent = 'copy'; }, 1200);
   });
   editor.querySelector('.ed-discard').addEventListener('click', () => {
+    if (!confirm('Throw away your unsaved arrangement?')) return;
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     location.reload();
   });
+  editor.querySelector('.ed-close').addEventListener('click', () => { editor.hidden = true; });
   if (draft) showEditor();
+
+  addEventListener('keydown', (e) => {
+    if (e.target.closest?.('textarea, input')) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+    else if (e.key === 'Escape') deselect(true);
+    else if (e.key === 'e' || e.key === 'E') { if (editor.hidden) showEditor(); else editor.hidden = true; }
+    else if (e.key === 'Alt') e.preventDefault();   // keep Firefox's menu bar from grabbing focus
+  });
+
+  /* ---------- pointer on the canvas ---------- */
+  let down = null, pendingMove = null;
+  const el = renderer.domElement;
+  el.addEventListener('pointermove', (ev) => { if (!down && !drag) pendingMove = ev; });
   el.addEventListener('pointerdown', (ev) => {
     flight = null;
-    if (ev.altKey) { const n = pick(ev); if (n) { startDrag(n, ev); return; } }
+    const n = (ev.altKey || !editor.hidden) ? pick(ev) : null;
+    if (n && beginEdit(n, ev)) return;
     down = { x: ev.clientX, y: ev.clientY };
   });
   el.addEventListener('pointerup', (ev) => {
-    if (drag) return;
+    if (justEdited) { down = null; return; }
     const click = down && Math.hypot(ev.clientX - down.x, ev.clientY - down.y) < 5;
     down = null;
     if (!click) return;
     const n = pick(ev);
     if (n) select(n); else if (selected) deselect(false);
   });
-  el.addEventListener('pointerleave', () => { pendingMove = null; setHover(null); });
+  el.addEventListener('pointerleave', () => { pendingMove = null; if (!drag) setHover(null); });
 
-  let W = innerWidth, H = innerHeight;
   addEventListener('resize', () => {
     W = innerWidth; H = innerHeight;
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
     renderer.setSize(W, H);
+    for (const m of fatMaterials) m.resolution.set(W, H);
     invalidate();
   });
 
@@ -465,14 +579,11 @@ export async function startScene(model, { neighbours, shortName, statusLabel, po
       const label = labelFor.get(n);
       up.set(0, n.size * 0.62 * n.obj.scale.x + 0.35, 0).add(n.obj.position);
       if (!place(label, up)) continue;
-      const dist = camera.position.distanceTo(n.obj.position);
-      label.style.zIndex = String(1000 - Math.round(dist));
+      label.style.zIndex = String(1000 - Math.round(camera.position.distanceTo(n.obj.position)));
     }
-    for (const g of groups) place(g.el, g.top);
     renderer.render(scene, camera);
   }
 
-  placeGroups();
   refreshFocus();
   requestAnimationFrame(frame);
   const fromHash = model.nodes.find((n) => `#${n.id}` === location.hash);

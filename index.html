@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
   <script type="importmap">
   {
     "imports": {
@@ -43,13 +43,18 @@
       <a class="panel-visit" target="_blank" rel="noopener">Enter ↗</a>
     </aside>
 
-    <!-- Appears after an Alt+drag: positions to paste into data/positions.json -->
+    <!-- Editor: press E, or Alt+drag a project. For arranging the map, not for visitors. -->
     <section id="editor" class="editor" hidden>
       <div class="ed-bar">
-        <span>positions · Alt+drag to move · copy &amp; paste to Claude</span>
+        <button type="button" data-tool="move" title="Drag a project to move it. Scroll over it to resize.">move · size</button>
+        <button type="button" data-tool="parent" title="Drag from the parent to the child (solid line). Again to remove.">parent → child</button>
+        <button type="button" data-tool="sibling" title="Drag from one project to another (dashed line). Again to remove.">sibling</button>
+        <span></span>
         <button class="ed-copy" type="button">copy</button>
         <button class="ed-discard" type="button">discard</button>
+        <button class="ed-close" type="button" aria-label="Hide editor (E)">×</button>
       </div>
+      <p class="ed-help">Drag projects · scroll over one to resize · drag a line again to remove it · Alt works without the editor · copy and paste to Claude</p>
       <textarea spellcheck="false" readonly></textarea>
     </section>
   </div>
@@ -66,6 +71,6 @@
   </div>
 
   <noscript><p style="color:#7f7;padding:2rem;font-family:monospace">This map needs JavaScript.</p></noscript>
-  <script type="module" src="js/main.js?v=6"></script>
+  <script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>

@@ -54,8 +54,6 @@ button { font: inherit; color: inherit; }
 .label:not(.core):not(.group) { font-size: 11px; }
 .label.hot { color: #fff; }
 .label.dim { opacity: .25; }
-.label.group { font-size: 13px; letter-spacing: .45em; color: var(--ink-dim); text-shadow: none; cursor: default; }
-.label.group.show { opacity: 1; pointer-events: none; }
 
 .panel {
   z-index: 2001;
@@ -67,7 +65,7 @@ button { font: inherit; color: inherit; }
 }
 .panel-close { position: absolute; top: 8px; right: 12px; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--ink-dim); }
 .panel-close:hover { color: #fff; }
-.panel-kicker { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; }
+.panel-kicker { color: var(--neon); display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; }
 .panel-name { font-family: var(--display); font-weight: 400; font-size: 23px; line-height: 1.15; margin: 10px 0 8px; color: #fff; }
 .panel-tagline { font-size: 13px; line-height: 1.55; color: var(--ink); margin: 0 0 16px; }
 .panel-links { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
@@ -82,11 +80,13 @@ button { font: inherit; color: inherit; }
 
 .editor { position: absolute; left: 30px; bottom: 20px; width: min(720px, calc(100vw - 60px)); z-index: 2002;
   border: 1px solid var(--line); border-radius: 6px; background: rgba(2, 12, 7, .94); user-select: text; -webkit-user-select: text; }
-.ed-bar { display: flex; align-items: center; gap: 14px; padding: 8px 12px; font-size: 10px; letter-spacing: .15em; color: var(--ink-dim); }
+.ed-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 10px; letter-spacing: .15em; color: var(--ink-dim); }
 .ed-bar span { flex: 1; }
+.ed-bar button[data-tool].on { background: var(--neon); border-color: var(--neon); color: var(--bg); }
+.ed-help { margin: 0; padding: 0 12px 8px; font-size: 10px; color: var(--ink-dim); }
 .ed-bar button { background: none; border: 1px solid var(--ink-faint); border-radius: 3px; padding: 3px 10px; font-size: 11px; color: var(--ink); cursor: pointer; }
 .ed-bar button:hover { border-color: var(--neon); color: #fff; }
-.editor textarea { display: block; width: 100%; height: 110px; resize: vertical; border: 0; border-top: 1px solid var(--line);
+.editor textarea { display: block; width: 100%; height: 130px; resize: vertical; border: 0; border-top: 1px solid var(--line);
   background: transparent; color: var(--ink); font: 11px/1.45 var(--mono); padding: 8px 12px; outline: none; }
 
 /* ---------- list (one per row on phones, a grid on wider screens) ---------- */

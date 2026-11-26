@@ -2,7 +2,7 @@
 
 A visualisation layer for the projects tracked on the command dashboard. It holds **no data of its own**: it reads one JSON file and draws it. Static site, no build step.
 
-- **Desktop:** one interconnected 3D network. Planetary Council (global governance) sits at the centre as a heart inside a cube. Stated connections are lines. Each `cluster` is a faint shell. Names appear on hover or when you fly close. There is no idle animation: the page draws a frame only when you move, hover or click, so it costs nothing while you read. Click a cube to open it; `←`/`→` step through, `Esc` resets.
+- **Desktop:** one interconnected 3D network. Planetary Council (global governance) sits at the centre as a heart inside a cube. Solid lines are parent → child (`part_of`), dashed lines are siblings (`connects_to`). Every name is always shown; cube size is set by hand to shape attention. There is no idle animation: the page draws a frame only when you move, hover or click, so it costs nothing while you read. Click a cube to open it; `←`/`→` step through, `Esc` resets.
 - **Mobile (≤ 820px) or no WebGL:** a list in source order with a sticky jump strip.
 
 ## Data
@@ -25,8 +25,10 @@ screens get the 3D map.
 
 ## Arranging the 3D map
 
-Hold **Alt** (Option on a Mac) and drag a project. It moves in the plane facing you;
-orbit the view to move it in depth. A box appears at the bottom with every position.
-Your moves are kept in this browser until you press **discard**. To make them the
-default for everyone, press **copy** and paste the result into `data/positions.json`
-(or hand it to Claude). Projects missing from that file are placed automatically.
+- **Alt + drag** a project (Option on a Mac): move it in the plane facing you; orbit to move it in depth.
+- **Alt + scroll** over a project: bigger / smaller (the border thickens with it).
+- **E** opens the editor. There, without Alt: drag to move, scroll to resize, or pick a line tool —
+  **parent → child** (drag from parent to child, solid line) or **sibling** (dashed). Drag the same line again to remove it.
+
+Changes stay in your browser until **discard**. To make them the default for everyone, **copy** the box
+and paste it to Claude (or apply it yourself: see the end of [SCHEMA.md](SCHEMA.md)).
