@@ -29,6 +29,10 @@ screens get the 3D map.
 - **Alt + scroll** over a project: bigger / smaller (the border thickens with it).
 - **E** opens the editor. There, without Alt: drag to move, scroll to resize, or pick a line tool —
   **parent → child** (drag from parent to child, single line), **sibling** (double line), or **cube / pyramid** (click a project to mark it standalone). To remove a line, click it (it turns white) and press Backspace.
+- **text** (in the editor): every relation as plain text, one block per project —
+  `parent:`, `child:`, `sibling:`, `standalone: yes/no`. Short names are fine. Write a relation once;
+  when you leave the box (or press Ctrl+Enter) it appears on the other project's block too.
+  Deleting it from either block removes it. The map updates as you type.
 
 Changes stay in your browser until **discard**. To make them the default for everyone, **copy** the box
 and paste it to Claude (or apply it yourself: see the end of [SCHEMA.md](SCHEMA.md)).

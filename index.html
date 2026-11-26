@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
   <script type="importmap">
   {
     "imports": {
@@ -46,6 +46,7 @@
     <!-- Editor: press E, or Alt+drag a project. For arranging the map, not for visitors. -->
     <section id="editor" class="editor" hidden>
       <div class="ed-bar">
+        <button type="button" data-tool="text" title="Write relations as plain text, one block per project.">text</button>
         <button type="button" data-tool="move" title="Drag a project to move it. Scroll over it to resize.">move · size</button>
         <button type="button" data-tool="parent" title="Drag from the parent to the child (single line). Click a line + Backspace to remove.">parent → child</button>
         <button type="button" data-tool="sibling" title="Drag from one project to another (double line). Click a line + Backspace to remove.">sibling</button>
@@ -55,8 +56,11 @@
         <button class="ed-discard" type="button">discard</button>
         <button class="ed-close" type="button" aria-label="Hide editor (E)">×</button>
       </div>
-      <p class="ed-help">Drag projects · scroll over one to resize · click a line + Backspace removes it · pyramid = standalone · Alt works without the editor · copy and paste to Claude</p>
-      <textarea spellcheck="false" readonly></textarea>
+      <p class="ed-help ed-map-help">Drag projects · scroll over one to resize · click a line + Backspace removes it · pyramid = standalone · Alt works without the editor · copy and paste to Claude</p>
+      <p class="ed-help ed-text-help" hidden>One block per project · short names are fine · the other side is filled in for you when you leave the box (or Ctrl+Enter) · delete either side to remove a line</p>
+      <p class="ed-status" hidden></p>
+      <textarea class="ed-json" spellcheck="false" readonly></textarea>
+      <textarea class="ed-rel" spellcheck="false" hidden></textarea>
     </section>
   </div>
 
@@ -72,6 +76,6 @@
   </div>
 
   <noscript><p style="color:#7f7;padding:2rem;font-family:monospace">This map needs JavaScript.</p></noscript>
-  <script type="module" src="js/main.js?v=11"></script>
+  <script type="module" src="js/main.js?v=12"></script>
 </body>
 </html>

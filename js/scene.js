@@ -16,6 +16,7 @@
 //     sibling -> drag from one project to the other (double line)
 //     shape   -> click a project: cube <-> pyramid (standalone)
 //   Click a line to select it, then Backspace / Delete removes it.
+//   text    -> all relations as plain text, one block per project
 // The box holds the whole arrangement as JSON to paste back into the data.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -502,7 +503,7 @@ const GAP_PX = 1.0;                // half the distance between the two strands'
 
   /* ---------- editing ---------- */
   const editor = document.getElementById('editor');
-  const editorText = editor.querySelector('textarea');
+  const editorText = editor.querySelector('.ed-json');
   let tool = 'move';
   let drag = null;           // { n, mode: 'move' | 'parent' | 'sibling', offset }
   let justEdited = false;
@@ -522,7 +523,7 @@ const GAP_PX = 1.0;                // half the distance between the two strands'
 
   // Returns true when the pointer-down started an edit (so orbit/select stay out of it).
   function beginEdit(n, ev) {
-    const mode = ev.altKey ? 'move' : !editor.hidden ? tool : null;
+    const mode = ev.altKey || tool === 'text' ? (editor.hidden && !ev.altKey ? null : 'move') : !editor.hidden ? tool : null;
     if (!mode || ev.button !== 0) return false;
     ev.preventDefault();
     if (mode === 'shape') {
@@ -627,17 +628,150 @@ const GAP_PX = 1.0;                // half the distance between the two strands'
   function saveDraft() {
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot())); } catch { /* private mode */ }
     showEditor();
+    if (tool === 'text' && document.activeElement !== relText) writeRelations();
   }
+
+  /* ---------- relations as plain text ----------
+     Planetary Council
+       parent:
+       child: Independent Tribunal, BaseX.com
+       sibling: Mars Robertson
+       standalone: no
+     Every line is written on both projects' blocks. Adding it on either side
+     adds it; deleting it from either side removes it. */
+  const relText = editor.querySelector('.ed-rel');
+  const relStatus = editor.querySelector('.ed-status');
+  const norm = (x) => x.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const keyOf = (kind, A, B) => kind === 'parent' ? `parent|${A.name}|${B.name}` : `sibling|${[A.name, B.name].sort().join('|')}`;
+  function findProject(raw) {
+    const q = norm(raw);
+    if (!q) return null;
+    const names = model.nodes.map((n) => [n, norm(n.name), norm(shortName(n.name))]);
+    const exact = names.find(([, a, b]) => a === q || b === q);
+    if (exact) return exact[0];
+    for (const test of [(a, b) => a.startsWith(q) || b.startsWith(q), (a) => a.includes(q)]) {
+      const hits = names.filter(([, a, b]) => test(a, b));
+      if (hits.length === 1) return hits[0][0];
+    }
+    return null;
+  }
+  const FIELD = /^\s*(parents?|part of|child(?:ren)?|siblings?|standalone)\s*:?\s*(.*)$/i;
+  function parseRelations(text) {
+    const mentions = new Map();          // edge key -> { kind, a, b, count }
+    const standalone = new Map();        // node -> bool
+    const unknown = new Set();
+    let cur = null;
+    for (const line of text.split('\n')) {
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+      const f = line.match(FIELD);
+      if (!f || !cur) {
+        if (f) continue;
+        cur = findProject(line.replace(/:\s*$/, ''));
+        if (!cur) unknown.add(line.trim());
+        continue;
+      }
+      const field = f[1].toLowerCase(), rest = f[2].trim();
+      if (field === 'standalone') { standalone.set(cur, !rest || /^(y|yes|true|x|1|✓)/i.test(rest)); continue; }
+      for (const part of rest.split(/[,;]/)) {
+        if (!part.trim()) continue;
+        const o = findProject(part);
+        if (!o) { unknown.add(part.trim()); continue; }
+        if (o === cur) continue;
+        const [kind, A, B] = field.startsWith('sibling') ? ['sibling', cur, o]
+          : field.startsWith('child') ? ['parent', cur, o] : ['parent', o, cur];
+        const k = keyOf(kind, A, B);
+        const m = mentions.get(k) || mentions.set(k, { kind, a: A, b: B, count: 0 }).get(k);
+        m.count++;
+      }
+    }
+    return { mentions, standalone, unknown };
+  }
+  function relationsText() {
+    const list = (n, pick) => model.links.filter(pick).map((l) => shortName((l.a === n ? l.b : l.a).name)).join(', ');
+    return '# One block per project. Short names are fine.\n'
+      + '# child = part of this project (single line) · sibling = related (double line)\n'
+      + '# standalone: yes = self-sufficient (pyramid)\n\n'
+      + model.nodes.map((n) => [
+        shortName(n.name),
+        `  parent: ${list(n, (l) => l.kind === 'parent' && l.b === n)}`,
+        `  child: ${list(n, (l) => l.kind === 'parent' && l.a === n)}`,
+        `  sibling: ${list(n, (l) => l.kind === 'sibling' && (l.a === n || l.b === n))}`,
+        `  standalone: ${n.standalone ? 'yes' : 'no'}`,
+      ].join('\n')).join('\n\n') + '\n';
+  }
+  let relPrev = new Map(), relOff = new Set();
+  function writeRelations() {
+    relText.value = relationsText();
+    relPrev = new Map([...parseRelations(relText.value).mentions].map(([k, m]) => [k, m.count]));
+    relOff = new Set();
+    relStatus.hidden = true;
+  }
+  function applyRelations() {
+    const { mentions, standalone, unknown } = parseRelations(relText.value);
+    const want = [];
+    for (const k of new Set([...mentions.keys(), ...relPrev.keys()])) {
+      const m = mentions.get(k), c = m?.count || 0, pc = relPrev.get(k) || 0;
+      if (!c) { relOff.delete(k); continue; }
+      if (c < pc) relOff.add(k);               // one side was deleted: the line goes
+      else if (c > pc) relOff.delete(k);
+      if (!relOff.has(k)) want.push(m);
+    }
+    relPrev = new Map([...mentions].map(([k, m]) => [k, m.count]));
+    // One line per pair; a parent line wins over a sibling line.
+    const pair = new Map();
+    for (const m of want) {
+      const pk = [m.a.name, m.b.name].sort().join('|');
+      const had = pair.get(pk);
+      if (!had || (had.kind === 'sibling' && m.kind === 'parent')) pair.set(pk, m);
+    }
+    const wanted = new Map([...pair.values()].map((m) => [keyOf(m.kind, m.a, m.b), m]));
+    for (const l of [...model.links]) if (!wanted.delete(keyOf(l.kind, l.a, l.b))) eraseLink(l);
+    for (const m of wanted.values()) { const l = { a: m.a, b: m.b, kind: m.kind }; model.links.push(l); drawLink(l); }
+    for (const [n, on] of standalone) {
+      if (!!n.standalone === on) continue;
+      n.standalone = on;
+      buildBody(n);
+      pickCorner(n);
+      for (const l of incident.get(n)) redrawLink(l);
+    }
+    relStatus.hidden = !unknown.size;
+    relStatus.textContent = unknown.size ? `Not recognised (ignored): ${[...unknown].join(' · ')}` : '';
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot())); } catch { /* private mode */ }
+    editorText.value = exportText();
+    refreshFocus();
+  }
+  relText.addEventListener('input', () => { clearTimeout(applyRelations.t); applyRelations.t = setTimeout(applyRelations, 350); });
+  const tidy = () => { clearTimeout(applyRelations.t); applyRelations(); if (relStatus.hidden) writeRelations(); };
+  relText.addEventListener('blur', tidy);
+  relText.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const at = relText.selectionStart, before = relText.value.slice(0, at).split('\n').length;
+      tidy();
+      const lines = relText.value.split('\n');           // keep the caret on the same line number
+      const pos = lines.slice(0, before).join('\n').length;
+      relText.setSelectionRange(pos, pos);
+    }
+  });
   const toolButtons = [...editor.querySelectorAll('[data-tool]')];
   const setTool = (t) => {
+    const was = tool;
     tool = t;
     for (const b of toolButtons) b.classList.toggle('on', b.dataset.tool === t);
+    const text = t === 'text';
+    relText.hidden = !text;
+    editor.querySelector('.ed-text-help').hidden = !text;
+    editor.querySelector('.ed-map-help').hidden = text;
+    editorText.hidden = text;
+    if (text && was !== 'text') writeRelations();
+    if (!text) relStatus.hidden = true;
   };
   for (const b of toolButtons) b.addEventListener('click', () => setTool(b.dataset.tool));
   setTool('move');
   editor.querySelector('.ed-copy').addEventListener('click', async () => {
-    editorText.select();
-    try { await navigator.clipboard.writeText(editorText.value); } catch { document.execCommand('copy'); }
+    const box = tool === 'text' ? relText : editorText;      // copy what you see
+    box.select();
+    try { await navigator.clipboard.writeText(box.value); } catch { document.execCommand('copy'); }
     const b = editor.querySelector('.ed-copy');
     b.textContent = 'copied';
     setTimeout(() => { b.textContent = 'copy'; }, 1200);

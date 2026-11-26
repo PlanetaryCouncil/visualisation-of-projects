@@ -360,6 +360,28 @@
         "governance"
       ],
       "connects_to": []
+    },
+    {
+      "name": "They Have Us For Idiots",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "Sourced case files on the things we're expected to file under coincidence",
+      "url": "https://psyops.planetarycouncil.org",
+      "tags": [
+        "governance"
+      ],
+      "connects_to": []
+    },
+    {
+      "name": "The Trumpisms Register",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "A running record of the renamings, annexations and acquisitions, scored",
+      "url": "https://trumpisms.planetarycouncil.org",
+      "tags": [
+        "governance"
+      ],
+      "connects_to": []
     }
   ]
 }
