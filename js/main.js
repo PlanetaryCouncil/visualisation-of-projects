@@ -3,11 +3,13 @@
 //
 //   ?src=<url>      read projects from another URL (default: data/projects.json)
 //   ?base=<url>     prefix for project urls that start with "/" (e.g. /basex)
-//   ?view=3d|list   force a mode
+//   ?view=3d|list   force a mode (default: list on phones, 3D on wider screens)
+//   ?pos=<url>      saved 3D positions (default: data/positions.json)
 
 const params = new URLSearchParams(location.search);
 const SOURCE = params.get('src') || 'data/projects.json';
 const RELATIVE_BASE = params.get('base') || '';
+const POSITIONS = params.get('pos') || 'data/positions.json';
 
 export const slug = (s) => s.toLowerCase()
   .replace(/\(.*?\)/g, '').replace(/&/g, 'and')
@@ -116,8 +118,8 @@ async function boot() {
   const want3D = forced === '3d' || (forced !== 'list' && !matchMedia('(max-width: 820px)').matches);
   if (want3D && hasWebGL()) {
     try {
-      const { startScene } = await import('./scene.js?v=5');
-      startScene(model, { neighbours, shortName, statusLabel });
+      const { startScene } = await import('./scene.js?v=6');
+      await startScene(model, { neighbours, shortName, statusLabel, positionsUrl: POSITIONS });
       return;
     } catch (err) {
       console.error('3D failed, falling back to list', err);

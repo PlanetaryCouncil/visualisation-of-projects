@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
   <script type="importmap">
   {
     "imports": {
@@ -42,6 +42,16 @@
       <div class="panel-links"></div>
       <a class="panel-visit" target="_blank" rel="noopener">Enter ↗</a>
     </aside>
+
+    <!-- Appears after an Alt+drag: positions to paste into data/positions.json -->
+    <section id="editor" class="editor" hidden>
+      <div class="ed-bar">
+        <span>positions · Alt+drag to move · copy &amp; paste to Claude</span>
+        <button class="ed-copy" type="button">copy</button>
+        <button class="ed-discard" type="button">discard</button>
+      </div>
+      <textarea spellcheck="false" readonly></textarea>
+    </section>
   </div>
 
   <!-- Mobile: list -->
@@ -49,13 +59,13 @@
     <header class="m-head">
       <div class="brand-name">MARS ROBERTSON</div>
       <div class="brand-sub">projects multiverse</div>
+      <nav class="corner"><a href="?view=3d">3d map</a></nav>
     </header>
     <nav id="m-nav" class="m-nav" aria-label="Jump to project"></nav>
     <main id="m-cards" class="m-cards"></main>
-    <footer class="m-foot"><a href="?view=3d">3D map</a></footer>
   </div>
 
   <noscript><p style="color:#7f7;padding:2rem;font-family:monospace">This map needs JavaScript.</p></noscript>
-  <script type="module" src="js/main.js?v=5"></script>
+  <script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

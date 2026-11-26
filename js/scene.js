@@ -1,11 +1,16 @@
 // The 3D map, built for speed: no post-processing, no idle animation, and a
 // frame is drawn only when something changed (orbit, zoom, hover, camera move).
 //
-// Layout comes from the source data alone:
+// Layout: positions saved in data/positions.json win. Any project without a
+// saved position is placed by a small force simulation from the source data:
 //   - connects_to = strong springs and visible lines,
-//   - same cluster = medium springs, drawn as one faint shell per cluster,
+//   - same cluster = medium springs,
 //   - shared tags = weak springs,
 //   - everything repels a little; the core (hq) sits at the centre.
+//
+// Editing: hold Alt (Option on a Mac) and drag a project. It moves in the plane
+// facing you; orbit the view to move it in depth. A box at the bottom then holds
+// every position as JSON, ready to paste into data/positions.json.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -19,13 +24,18 @@ function seeded(str) {
   return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
 }
 
-function layout(model) {
+function layout(model, saved) {
   const N = model.nodes;
   const rnd = seeded(N.map((n) => n.name).join('|'));
   for (const n of N) {
-    n.p = n.isCore ? new THREE.Vector3() : new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(30);
+    const s = saved[n.name];
+    n.fixed = Array.isArray(s) && s.length === 3 || n.isCore;
+    n.p = Array.isArray(s) && s.length === 3 ? new THREE.Vector3(...s)
+      : n.isCore ? new THREE.Vector3()
+      : new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(30);
     n.v = new THREE.Vector3();
   }
+  if (N.every((n) => n.fixed)) { for (const n of N) { n.pos = n.p; delete n.p; delete n.v; } return; }
   const springs = [];
   for (const l of model.links) springs.push({ a: l.a, b: l.b, rest: l.kind === 'stated' ? 8 : 9, k: l.kind === 'stated' ? 0.06 : 0.04 });
   for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
@@ -52,7 +62,7 @@ function layout(model) {
     for (const n of N) {
       n.v.addScaledVector(n.p, -0.009);
       n.v.y -= n.p.y * 0.006;
-      if (n.isCore) { n.p.set(0, 0, 0); n.v.set(0, 0, 0); continue; }
+      if (n.fixed) { n.v.set(0, 0, 0); continue; }
       n.v.multiplyScalar(0.82);
       n.p.addScaledVector(n.v, 0.6 + cool);
     }
@@ -92,15 +102,25 @@ function heartGeometry() {
   return geo;
 }
 
-export function startScene(model, { neighbours, shortName, statusLabel }) {
+const DRAFT_KEY = 'projects-multiverse:positions-draft';
+const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch { return null; } };
+
+export async function startScene(model, { neighbours, shortName, statusLabel, positionsUrl }) {
+  let saved = {};
+  try {
+    const r = await fetch(positionsUrl, { cache: 'no-cache' });
+    if (r.ok) saved = await r.json();
+  } catch { /* no saved positions: everything is auto-placed */ }
+  const draft = readDraft();
+  if (draft) saved = { ...saved, ...draft };
+
   document.getElementById('stage').hidden = false;
   const host = document.getElementById('gl');
   const labelsEl = document.getElementById('labels');
-  layout(model);
+  layout(model, saved);
 
   const radii = model.nodes.map((n) => n.pos.length()).sort((a, b) => a - b);
   const R = radii[Math.floor(radii.length * 0.85)] + 4;
-  const FLOOR_Y = Math.min(...model.nodes.map((n) => n.pos.y)) - 7;
   const centre = model.nodes.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(model.nodes.length);
   const HOME = { pos: centre.clone().add(new THREE.Vector3(0, R * 0.5, R * 1.75)), target: centre };
 
@@ -135,37 +155,26 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x7dffb0, size: 0.9, transparent: true, opacity: 0.45, fog: false })));
   }
-  const floor = new THREE.PolarGridHelper(R * 1.6, 24, 10, 64, 0x1a6b3d, 0x0f3d24);
-  floor.position.y = FLOOR_Y;
-  floor.material.transparent = true;
-  floor.material.opacity = 0.2;
-  scene.add(floor);
-  {
-    const h = Math.abs(FLOOR_Y) - 2.5;
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.5, h, 8, 1, true),
-      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.12, depthWrite: false }));
-    beam.position.y = FLOOR_Y + h / 2;
-    scene.add(beam);
-  }
 
-  /* ---------- cluster shells ---------- */
+  /* ---------- cluster names (no shells) ---------- */
   const groups = [];
   const byCluster = new Map();
   for (const n of model.nodes) if (n.cluster) byCluster.set(n.cluster, [...(byCluster.get(n.cluster) || []), n]);
   for (const [name, members] of byCluster) {
     if (members.length < 2) continue;
-    const c = members.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(members.length);
-    const r = Math.max(...members.map((n) => n.pos.distanceTo(c))) + 3.5;
-    const shell = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(r, 1)),
-      new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.07, depthWrite: false }));
-    shell.position.copy(c);
-    scene.add(shell);
     const el = document.createElement('div');
     el.className = 'label group show';
     el.textContent = name;
     labelsEl.append(el);
-    groups.push({ members, shell, el, top: c.clone().add(new THREE.Vector3(0, r, 0)) });
+    groups.push({ members, el, top: new THREE.Vector3() });
   }
+  const placeGroups = () => {
+    for (const g of groups) {
+      const c = g.members.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(g.members.length);
+      const r = Math.max(...g.members.map((n) => n.pos.distanceTo(c)));
+      g.top.copy(c).y += r + 2;
+    }
+  };
 
   /* ---------- nodes ---------- */
   const pickables = [];
@@ -202,16 +211,25 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
       mats.push({ m: inner.material, base: 0.6 });
     }
     Object.assign(n, { obj: g, mats });
+    n.pos = g.position;              // one vector: moving the group moves the project
     scene.add(g);
   }
 
   /* ---------- links ---------- */
   const links = [];
   const incident = new Map(model.nodes.map((n) => [n, []]));
-  for (const l of model.links) {
-    const A = l.a.pos, B = l.b.pos;
+  const curvePoints = (A, B) => {
     const ctrl = A.clone().lerp(B, 0.5).add(new THREE.Vector3(0, A.distanceTo(B) * 0.2, 0));
-    const pts = new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24);
+    return new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24);
+  };
+  const redrawLink = (e) => {
+    const attr = e.line.geometry.attributes.position;
+    curvePoints(e.a.pos, e.b.pos).forEach((p, i) => attr.setXYZ(i, p.x, p.y, p.z));
+    attr.needsUpdate = true;
+    e.line.geometry.computeBoundingSphere();
+  };
+  for (const l of model.links) {
+    const pts = curvePoints(l.a.pos, l.b.pos);
     const base = l.kind === 'stated' ? 0.6 : 0.18;
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: l.kind === 'stated' ? NEON : 0x2bd36f, transparent: true, opacity: base }));
@@ -226,11 +244,12 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
   const labelFor = new Map();
   for (const n of model.nodes) {
     const el = document.createElement('div');
-    el.className = 'label' + (n.isCore ? ' core' : '');
+    el.className = 'label show' + (n.isCore ? ' core' : '');
     el.textContent = shortName(n.name);
     el.addEventListener('pointerenter', () => setHover(n));
     el.addEventListener('pointerleave', () => setHover(null));
-    el.addEventListener('click', () => select(n));
+    el.addEventListener('click', (ev) => { if (!ev.altKey) select(n); });
+    el.addEventListener('pointerdown', (ev) => { if (ev.altKey) startDrag(n, ev); });
     labelsEl.append(el);
     labelFor.set(n, el);
   }
@@ -251,13 +270,10 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
       for (const { m, base } of n.mats) m.opacity = base * v;
       n.obj.scale.setScalar(n === focus ? 1.15 : 1);
       labelFor.get(n).classList.toggle('hot', n === focus);
+      labelFor.get(n).classList.toggle('dim', !!focus && !n.lit);
     }
     for (const e of links) e.line.material.opacity = !focus ? e.base : (e.a === focus || e.b === focus) ? 1 : e.base * 0.15;
-    for (const g of groups) {
-      const mine = focus && g.members.includes(focus);
-      g.shell.material.opacity = mine ? 0.16 : focus ? 0.03 : 0.07;
-      g.el.classList.toggle('show', !focus || mine);
-    }
+    for (const g of groups) g.el.classList.toggle('show', !focus || g.members.includes(focus));
     invalidate();
   }
   function setHover(n) {
@@ -318,9 +334,11 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
   panel.querySelector('.panel-close').addEventListener('click', () => deselect(true));
   document.getElementById('btn-reset').addEventListener('click', () => deselect(true));
   addEventListener('keydown', (e) => {
+    if (e.target.closest?.('textarea, input')) return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
     else if (e.key === 'Escape') deselect(true);
+    else if (e.key === 'Alt') e.preventDefault();   // keep Firefox's menu bar from grabbing focus
   });
 
   /* ---------- picking (throttled to one raycast per frame) ---------- */
@@ -335,9 +353,71 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
     return hit ? hit.object.userData.node : null;
   };
   const el = renderer.domElement;
-  el.addEventListener('pointermove', (ev) => { if (!down) pendingMove = ev; });
-  el.addEventListener('pointerdown', (ev) => { down = { x: ev.clientX, y: ev.clientY }; flight = null; });
+  el.addEventListener('pointermove', (ev) => { if (!down && !drag) pendingMove = ev; });
+
+  /* ---------- editing: Alt + drag moves a project ---------- */
+  let drag = null;
+  const plane = new THREE.Plane();
+  const hitPoint = new THREE.Vector3();
+  const rayAt = (ev) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    return ray.ray.intersectPlane(plane, hitPoint);
+  };
+  function startDrag(n, ev) {
+    ev.preventDefault();
+    controls.enabled = false;
+    plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()), n.pos);
+    const hit = rayAt(ev);
+    drag = { n, offset: hit ? n.pos.clone().sub(hit) : new THREE.Vector3() };
+    setHover(n);
+  }
+  addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    if (!rayAt(ev)) return;
+    drag.n.pos.copy(hitPoint).add(drag.offset);
+    for (const e of incident.get(drag.n)) redrawLink(e);
+    placeGroups();
+    invalidate();
+  });
+  addEventListener('pointerup', () => {
+    if (!drag) return;
+    drag = null;
+    controls.enabled = true;
+    saveDraft();
+  });
+
+  const editor = document.getElementById('editor');
+  const editorText = editor.querySelector('textarea');
+  const snapshot = () => Object.fromEntries(model.nodes.map((n) =>
+    [n.name, n.pos.toArray().map((v) => Math.round(v * 10) / 10)]));
+  function showEditor() {
+    editor.hidden = false;
+    editorText.value = JSON.stringify(snapshot(), null, 0).replace(/\],"/g, '],\n"');
+  }
+  function saveDraft() {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot())); } catch { /* private mode */ }
+    showEditor();
+  }
+  editor.querySelector('.ed-copy').addEventListener('click', async () => {
+    editorText.select();
+    try { await navigator.clipboard.writeText(editorText.value); } catch { document.execCommand('copy'); }
+    editor.querySelector('.ed-copy').textContent = 'copied';
+    setTimeout(() => { editor.querySelector('.ed-copy').textContent = 'copy'; }, 1200);
+  });
+  editor.querySelector('.ed-discard').addEventListener('click', () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    location.reload();
+  });
+  if (draft) showEditor();
+  el.addEventListener('pointerdown', (ev) => {
+    flight = null;
+    if (ev.altKey) { const n = pick(ev); if (n) { startDrag(n, ev); return; } }
+    down = { x: ev.clientX, y: ev.clientY };
+  });
   el.addEventListener('pointerup', (ev) => {
+    if (drag) return;
     const click = down && Math.hypot(ev.clientX - down.x, ev.clientY - down.y) < 5;
     down = null;
     if (!click) return;
@@ -381,19 +461,18 @@ export function startScene(model, { neighbours, shortName, statusLabel }) {
     if (!dirty) return;
     dirty = false;
 
-    const focus = hovered || selected;
     for (const n of model.nodes) {
       const label = labelFor.get(n);
       up.set(0, n.size * 0.62 * n.obj.scale.x + 0.35, 0).add(n.obj.position);
       if (!place(label, up)) continue;
       const dist = camera.position.distanceTo(n.obj.position);
-      label.classList.toggle('show', n.isCore || n.lit || (!focus && dist < 24));
       label.style.zIndex = String(1000 - Math.round(dist));
     }
     for (const g of groups) place(g.el, g.top);
     renderer.render(scene, camera);
   }
 
+  placeGroups();
   refreshFocus();
   requestAnimationFrame(frame);
   const fromHash = model.nodes.find((n) => `#${n.id}` === location.hash);
