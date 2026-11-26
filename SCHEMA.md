@@ -30,6 +30,7 @@ The map reads one JSON document. The dashboard is the source of truth; this repo
 | `cluster` | no | Projects with the same cluster are pulled together and drawn inside one shell labelled with the cluster name. Current clusters: `governance`, `art`, `mars`. |
 | `tags` | no | Shared tags pull projects slightly together. |
 | `connects_to` | no | Drawn as lines, in either direction. A project with none gets a faint line to its cluster's best-connected project (or to the `hq` if it has no cluster), so nothing floats loose. |
-| `about`, `said` | no | Not displayed. |
+| `about` | no | Longer description (AI-polished). Not displayed. |
+| `mars_wrote` | no | Mars’s own words, kept verbatim and never rewritten. Not displayed. |
 
 A new project needs nothing more than an entry in `projects`; the layout places it automatically.

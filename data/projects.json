@@ -16,7 +16,7 @@
         "BaseX.com"
       ],
       "about": "The HQ. An upgrade to global governance through art and culture. Every other room connects back here. Useful: ideas that link one project to another, and honest critique of how decisions get made.",
-      "said": "main ---> the HQ #governance #climate"
+      "mars_wrote": "main ---> the HQ #governance #climate"
     },
     {
       "name": "Live Agent Fleet (Command & Control Dashboard)",
@@ -32,7 +32,7 @@
         "Mars Robertson"
       ],
       "about": "This board. AI agents running in the open, every proposal and review public. Useful: pick up an open issue, review a branch, report a bug.",
-      "said": "#governance #productivity"
+      "mars_wrote": "#governance #productivity"
     },
     {
       "name": "Independent Tribunal",
@@ -48,7 +48,7 @@
         "BaseX.com"
       ],
       "about": "Close to the top, next to Planetary Council and BaseX. A body neither party appoints, for disputes existing authorities cannot fairly hear. Useful: dispute-resolution design and precedent.",
-      "said": "TOP close to the top, next P C and BaseX #governance"
+      "mars_wrote": "TOP close to the top, next P C and BaseX #governance"
     },
     {
       "name": "BaseX.com",
@@ -65,7 +65,7 @@
         "Planetary Council"
       ],
       "about": "BaseX.com, \"nature means business\". A new definition of value that counts people, planet and prosperity, externalities and co-benefits included. Awaiting deployment. Useful: break the live demo and say what broke.",
-      "said": "call it BaseX.com \"nature means business\", BaseX just like SpaceX, making life mulitplanetary, starting from the Earth, accounting for externalities, and cobenefits, new definition of value ---> connected to P C #governance #climate"
+      "mars_wrote": "call it BaseX.com \"nature means business\", BaseX just like SpaceX, making life mulitplanetary, starting from the Earth, accounting for externalities, and cobenefits, new definition of value ---> connected to P C #governance #climate"
     },
     {
       "name": "Mars Robertson",
@@ -83,7 +83,7 @@
         "Personal Wiki"
       ],
       "about": "The person behind the rooms. Art, ideas, AI, memes, magic, impact. Close to Planetary Council, not the core of it. Useful: say hello, collaborate.",
-      "said": "project called Mars Robertson, close to Planetary Council, but not necessarily at the core"
+      "mars_wrote": "project called Mars Robertson, close to Planetary Council, but not necessarily at the core"
     },
     {
       "name": "Money from the Future",
@@ -99,7 +99,7 @@
         "Network State Genesis"
       ],
       "about": "An art project about a new currency, and about what makes money real in the first place. Useful: imagination, design, and sharp questions about value.",
-      "said": "artistic project, new currency, better than real money, how can you define real #art #imagination"
+      "mars_wrote": "artistic project, new currency, better than real money, how can you define real #art #imagination"
     },
     {
       "name": "Network State Genesis",
@@ -115,7 +115,7 @@
         "Planetary Council"
       ],
       "about": "The first network state, multiplanetary from the start, built on aligned values. Connected to Money from the Future and Planetary Council. Useful: governance models, constitutions, and what has been tried before.",
-      "said": "the very first network state, multiplanetary from the start... Connected to money and P C #governance"
+      "mars_wrote": "the very first network state, multiplanetary from the start... Connected to money and P C #governance"
     },
     {
       "name": "Future Vision XPRIZE",
@@ -129,7 +129,7 @@
       ],
       "connects_to": [],
       "about": "Imagination and storytelling: expanding the horizons of the imaginable. The competition entry is done; the stories carry on. Useful: visions of the future worth building toward.",
-      "said": "imagination, storytelling #art #imagination"
+      "mars_wrote": "imagination, storytelling #art #imagination"
     },
     {
       "name": "Selfie Gallery",
@@ -143,7 +143,7 @@
       ],
       "connects_to": [],
       "about": "Faces drawn in 80 columns of ASCII, with optional visual interpretations. Useful: new interpretations, and ideas for the gallery itself.",
-      "said": "#AI #art"
+      "mars_wrote": "#AI #art"
     },
     {
       "name": "Haiku Command-Line Poems",
@@ -157,7 +157,7 @@
       ],
       "connects_to": [],
       "about": "Two-line closing poems from the terminal. Useful: poems, and better ways to collect and show them.",
-      "said": "#ai #art"
+      "mars_wrote": "#ai #art"
     },
     {
       "name": "AI Brain Farts",
@@ -171,7 +171,7 @@
       ],
       "connects_to": [],
       "about": "Logged cases of confidently-wrong AI output, scored on four axes. Useful: report your own mistakes here. Honesty about failure is the point.",
-      "said": "#ai #art"
+      "mars_wrote": "#ai #art"
     },
     {
       "name": "Personal Wiki",
@@ -187,7 +187,7 @@
         "Mars Robertson"
       ],
       "about": "An open wiki anyone can contribute to. Useful: facts, sources and corrections.",
-      "said": "#productivity #personal"
+      "mars_wrote": "#productivity #personal"
     },
     {
       "name": "Solarpunk Estates",
@@ -203,7 +203,7 @@
         "Mars Robertson"
       ],
       "about": "One billion regenerative homes: coliving, rent-to-own, rooted in nature, powered by the sun. Awaiting deployment. Useful: sites, designs, financing models.",
-      "said": "#personal #nature"
+      "mars_wrote": "#personal #nature"
     },
     {
       "name": "Dating Relating",
@@ -218,7 +218,7 @@
         "Mars Robertson"
       ],
       "about": "A fresh take on dating and connection. Useful: ideas on how people meet and stay connected.",
-      "said": "#personal"
+      "mars_wrote": "#personal"
     },
     {
       "name": "Legal Screenshot",
@@ -231,7 +231,7 @@
         "Independent Tribunal"
       ],
       "about": "Timestamped, legally defensible screenshots, next to Independent Tribunal. No longer for sale; the plan is to make a business out of it. Useful: evidence standards, business ideas.",
-      "said": "next to independent tribunal"
+      "mars_wrote": "next to independent tribunal"
     },
     {
       "name": "Ultra Magic Hands",
@@ -248,7 +248,7 @@
         "Mars Robertson"
       ],
       "about": "Massage, next to Dating Relating. A personal income project. Useful: word of mouth.",
-      "said": "#personal #income next to dating relating"
+      "mars_wrote": "#personal #income next to dating relating"
     },
     {
       "name": "Ministry of Memes and Better Propaganda",
@@ -265,7 +265,7 @@
         "Planetary Council"
       ],
       "about": "The good guys need better propaganda than the bad guys: memes to end the war through awareness and education. Useful: memes that inform rather than inflame.",
-      "said": "#governance #culture #memes"
+      "mars_wrote": "#governance #culture #memes"
     },
     {
       "name": "Laughter Scale",
@@ -279,7 +279,7 @@
       ],
       "connects_to": [],
       "about": "An independent laboratory for comedic performance. Jokes measured 0 to 11. Useful: jokes, and arguments about the score.",
-      "said": "#ai #art"
+      "mars_wrote": "#ai #art"
     },
     {
       "name": "Art Benchmark",
@@ -295,7 +295,7 @@
         "Marsita the Ultra"
       ],
       "about": "The finest art, fresh from the source, and a distribution network. Related to Marsita the Ultra, the ultimate hacker. Useful: art, curation, distribution.",
-      "said": "#ai #art related to Marsita, the ultimate hacker"
+      "mars_wrote": "#ai #art related to Marsita, the ultimate hacker"
     },
     {
       "name": "Publishing Pipeline",
@@ -310,7 +310,7 @@
         "Live Agent Fleet (Command & Control Dashboard)"
       ],
       "about": "Image in, then Claude, a local index, optional 3D, unsigned Nostr events. Personal productivity, feeding Art Benchmark. Useful: code and testing.",
-      "said": "personal producitvity, connected to art benchmark"
+      "mars_wrote": "personal producitvity, connected to art benchmark"
     },
     {
       "name": "Marsita the Ultra",
@@ -326,7 +326,7 @@
         "Mars Robertson"
       ],
       "about": "Music and culture, spreading the vibes. Six songs out; the album in progress is Memories From Base Reality. Useful: listen, share, remix.",
-      "said": "music culture, spreading the vibes"
+      "mars_wrote": "music culture, spreading the vibes"
     }
   ]
 }
