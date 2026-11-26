@@ -37,6 +37,7 @@ button { font: inherit; color: inherit; }
 
 /* ---------- desktop stage ---------- */
 #stage { position: fixed; inset: 0; overflow: hidden; }
+#stage .topbar, #stage .side-left .manifesto, #stage .mantra, #stage .legend, #stage .status-box, #stage .here-box { user-select: none; -webkit-user-select: none; }
 #gl { position: absolute; inset: 0; z-index: 1; cursor: grab; }
 #gl:active { cursor: grabbing; }
 #gl.pointing { cursor: pointer; }
@@ -48,19 +49,23 @@ button { font: inherit; color: inherit; }
   font-family: var(--display); font-size: 12px; letter-spacing: .14em;
   text-transform: uppercase; color: var(--ink);
   text-shadow: 0 0 8px rgba(57,255,136,.55);
-  transition: opacity .25s, color .25s;
+  transition: opacity .3s, color .25s;
   will-change: transform;
+  opacity: 0; pointer-events: none;
+  user-select: none; -webkit-user-select: none;
 }
+.label.show { opacity: 1; pointer-events: auto; }
 .label .num { color: var(--ink-dim); margin-right: .55em; font-size: 10px; }
 .label .tag { display: block; font-size: 9.5px; color: var(--ink-dim); letter-spacing: .1em; text-transform: none; margin-top: 2px; max-width: 220px; white-space: normal; opacity: 0; transition: opacity .25s; }
 .label.hq { font-size: 15px; color: #fff; text-shadow: 0 0 10px rgba(255,59,59,.7), 0 0 14px rgba(57,255,136,.5); }
 .label.hot { color: #fff; z-index: 5; }
 .label.hot .tag { opacity: 1; }
-.label.dim { opacity: .18; }
 .label.cluster {
-  pointer-events: none; font-size: 11px; color: var(--ink-faint);
-  letter-spacing: .5em; text-shadow: none;
+  font-size: 13px; color: var(--ink); letter-spacing: .38em; text-align: center;
+  text-shadow: 0 0 12px rgba(57,255,136,.6);
 }
+.label.cluster .count { display: block; font-size: 9.5px; letter-spacing: .3em; color: var(--ink-dim); margin-top: 3px; text-transform: lowercase; }
+.label.cluster:hover { color: #fff; }
 
 /* top bar */
 .topbar {
@@ -95,7 +100,14 @@ button { font: inherit; color: inherit; }
 .filters button:hover { border-color: var(--neon); color: var(--ink); }
 .filters button[aria-pressed="true"]:hover { color: var(--bg); }
 .index { overflow-y: auto; padding-right: 6px; scrollbar-width: thin; scrollbar-color: var(--ink-faint) transparent; }
-.index h3 { font-family: var(--display); font-weight: 400; font-size: 10px; letter-spacing: .35em; color: var(--ink-faint); margin: 12px 0 4px; text-transform: uppercase; }
+.index .grp {
+  display: flex !important; justify-content: space-between; width: 100%;
+  font-family: var(--display); font-size: 12px !important; letter-spacing: .28em; text-transform: uppercase;
+  color: var(--ink) !important; padding: 6px 0 !important; border-bottom: 1px solid rgba(57,255,136,.1) !important;
+}
+.index .grp .cnt { color: var(--ink-faint); letter-spacing: 0; }
+.index .grp:hover, .index .grp.open { color: var(--neon) !important; }
+.index .rooms { padding: 4px 0 8px 4px; }
 .index button {
   display: flex; gap: 8px; width: 100%; text-align: left; background: none; border: 0; cursor: pointer;
   padding: 3px 0; font-size: 11.5px; color: var(--ink-dim); line-height: 1.35;
@@ -124,6 +136,8 @@ button { font: inherit; color: inherit; }
 .st-awaiting-deployment { color: var(--amber); }
 .st-done { color: var(--cyan); }
 .st-for-sale { color: var(--rose); }
+.st-emerging { color: #cfe9da; border-style: dashed !important; }
+.m-card.ghost { border-style: dashed; opacity: .75; }
 .panel-tagline { font-size: 14px; line-height: 1.5; color: var(--ink); margin: 14px 0 8px; font-weight: 400; }
 .panel-about { font-size: 12.5px; line-height: 1.65; color: var(--ink-dim); margin: 0 0 14px; }
 .panel-tags, .m-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
@@ -221,3 +235,5 @@ button { font: inherit; color: inherit; }
   #rain { display: none; }
   .panel { animation: none; }
 }
+
+.sw-ghost { color: #cfe9da; border-style: dashed; }

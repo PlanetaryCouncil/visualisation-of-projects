@@ -44,6 +44,15 @@ async function loadModel() {
       tags: [...new Set(p.tags.map((t) => t.toLowerCase()))],
     };
   });
+  // Emerging rooms: placeholders for autonomous projects that don't exist yet.
+  const em = layout.emerging;
+  for (let i = 0; em && i < em.count; i++) {
+    nodes.push({
+      name: `Emerging room ${i + 1}`, id: `emerging-${i + 1}`, isGhost: true,
+      rank: nodes.length, num: '··', tags: [], connects_to: [], status: 'emerging',
+      tagline: em.tagline, about: em.about, href: null, cluster: em.cluster,
+    });
+  }
   const nodeByName = new Map(nodes.map((n) => [n.name, n]));
 
   // Links: stated (connects_to) and inferred (layout.json). Deduplicated, undirected.
@@ -113,7 +122,7 @@ function renderList(model) {
   const nav = document.getElementById('m-nav');
   const cards = document.getElementById('m-cards');
 
-  for (const n of model.nodes) {
+  for (const n of model.nodes.filter((x) => !x.isGhost)) {
     const a = document.createElement('a');
     a.href = `#${n.id}`;
     a.textContent = `${n.num} ${n.name.replace(/\s*\(.*\)/, '')}`;
@@ -137,6 +146,15 @@ function renderList(model) {
     card.querySelector('.m-tagline').textContent = n.tagline;
     card.querySelector('.m-about').textContent = n.about;
     card.querySelector('.m-visit').href = n.href;
+    cards.append(card);
+  }
+
+  if (model.nodes.some((n) => n.isGhost)) {
+    const ghost = model.nodes.find((n) => n.isGhost);
+    const card = document.createElement('article');
+    card.className = 'm-card ghost';
+    card.innerHTML = `<div class="m-top"><span class="m-num">··</span><span class="m-status st-emerging">emerging</span></div><h2>Emerging rooms</h2><p class="m-about"></p>`;
+    card.querySelector('.m-about').textContent = ghost.about;
     cards.append(card);
   }
 

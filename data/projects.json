@@ -15,6 +15,23 @@
       "about": "The HQ. An upgrade to global governance through art and culture. Every other room connects back here. Useful: ideas that link one project to another, and honest critique of how decisions get made."
     },
     {
+      "name": "Mars Robertson",
+      "tags": [
+        "personal",
+        "art",
+        "ai"
+      ],
+      "connects_to": [
+        "Planetary Council",
+        "Personal Wiki"
+      ],
+      "said": "project called Mars Robertson, close to Planetary Council, but not necessarily at the core",
+      "tagline": "Multi-dimensional AI artist. The heart, the person, the purpose.",
+      "url": "https://wiki.secondrenaissance.net/wiki/Mars_Robertson",
+      "status": "active",
+      "about": "The person behind the rooms. Art, ideas, AI, memes, magic, impact. Close to Planetary Council, not the core of it. Useful: say hello, collaborate."
+    },
+    {
       "name": "BaseX",
       "tags": [
         "governance",

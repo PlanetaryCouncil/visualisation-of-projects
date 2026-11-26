@@ -163,7 +163,8 @@ export function startScene(model) {
   /* ---------- cluster shells (holons of holons) ---------- */
   const shells = [];
   for (const c of model.clusters) {
-    const r = c.radius + (c.id === model.hq.cluster ? 5 : 4.5);
+    if (c.id === model.hq.cluster) continue;
+    const r = c.radius + 4.5;
     const geo = new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(r, 1));
     const shell = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false }));
     shell.position.copy(c.vCenter);
@@ -175,8 +176,8 @@ export function startScene(model) {
   /* ---------- project nodes ---------- */
   const pickables = [];
   for (const n of model.nodes) {
-    const color = new THREE.Color(n.isHQ ? NEON : STATUS_COLOR[n.status] || NEON);
-    const size = n.isHQ ? 4.6 : Math.max(1.9, 3.1 - n.rank * 0.065);
+    const color = new THREE.Color(n.isHQ ? NEON : n.isGhost ? 0xcfe9da : STATUS_COLOR[n.status] || NEON);
+    const size = n.isHQ ? 4.6 : n.isGhost ? 1.8 : Math.max(1.7, 2.8 - n.rank * 0.05);
     n.size = size;
     const g = new THREE.Group();
     g.position.copy(n.pos);
@@ -185,7 +186,10 @@ export function startScene(model) {
     const face = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: n.isHQ ? 0.02 : 0.06, blending: THREE.AdditiveBlending, depthWrite: false }));
     face.userData.node = n;
     pickables.push(face);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), n.isGhost
+      ? new THREE.LineDashedMaterial({ color, dashSize: 0.25, gapSize: 0.2, transparent: true, opacity: 0.45 })
+      : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
+    if (n.isGhost) edges.computeLineDistances();
     const inner = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 0.38, size * 0.38, size * 0.38)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }));
     inner.rotation.set(0.6, 0.8, 0);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -193,8 +197,8 @@ export function startScene(model) {
     g.add(face, edges, inner, halo);
 
     const mats = [
-      { m: face.material, base: 0.06 }, { m: edges.material, base: 0.9 },
-      { m: inner.material, base: 0.55 }, { m: halo.material, base: n.isHQ ? 0.06 : 0.2 },
+      { m: face.material, base: n.isGhost ? 0.015 : 0.06 }, { m: edges.material, base: n.isGhost ? 0.45 : 0.9 },
+      { m: inner.material, base: 0.55 }, { m: halo.material, base: n.isHQ ? 0.06 : n.isGhost ? 0.05 : 0.2 },
     ];
 
     if (n.isHQ) {
@@ -211,6 +215,7 @@ export function startScene(model) {
       mats.push({ m: twin.material, base: 0.45 }, { m: meta.material, base: 0.3 });
     }
 
+    if (n.isGhost) inner.visible = false;
     n.obj = g; n.inner = inner; n.mats = mats; n.vis = 1; n.visTarget = 1; n.scaleTarget = 1;
     n.spin = (Math.random() - 0.5) * 0.25;
     g.rotation.y = Math.random() * Math.PI;
@@ -232,10 +237,11 @@ export function startScene(model) {
     }
     const curve = new THREE.QuadraticBezierCurve3(A.clone(), ctrl, B.clone());
     const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(64));
-    const base = kind === 'stated' ? 0.75 : kind === 'inferred' ? 0.42 : 0.13;
+    if (kind === 'member') ctrl = A.clone().lerp(B, 0.5).add(new THREE.Vector3(0, d * 0.08, 0));
+    const base = { stated: 0.7, inferred: 0.4, branch: 0.16, member: 0.2 }[kind];
     const mat = kind === 'inferred'
       ? new THREE.LineDashedMaterial({ color: NEON, dashSize: 0.7, gapSize: 0.55, transparent: true, opacity: base })
-      : new THREE.LineBasicMaterial({ color: kind === 'branch' ? 0x2bd36f : NEON, transparent: true, opacity: base });
+      : new THREE.LineBasicMaterial({ color: kind === 'stated' ? NEON : 0x2bd36f, transparent: true, opacity: base });
     const line = new THREE.Line(geo, mat);
     if (kind === 'inferred') line.computeLineDistances();
     scene.add(line);
@@ -246,10 +252,15 @@ export function startScene(model) {
     return e;
   };
   for (const l of model.links) makeEdge(l.a, l.b, l.kind, l.why);
-  for (const n of model.nodes) {
-    if (n.isHQ) continue;
-    const direct = model.links.some((l) => (l.a === n && l.b === model.hq) || (l.b === n && l.a === model.hq));
-    if (!direct) makeEdge(model.hq, n, 'branch');
+  // Hierarchy: HQ -> each cluster's nucleus -> the cluster's other rooms.
+  const linked = (a, b) => edges.some((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+  for (const c of model.clusters) {
+    if (c.id === model.hq.cluster) continue;
+    const [nucleus, ...rest] = model.nodes.filter((n) => n.cluster === c.id).sort((a, b) => a.rank - b.rank);
+    if (!nucleus) continue;
+    c.nucleus = nucleus;
+    if (!linked(model.hq, nucleus)) makeEdge(model.hq, nucleus, 'branch');
+    for (const m of rest) if (!linked(nucleus, m)) makeEdge(nucleus, m, 'member');
   }
 
   /* ---------- agents: little lights wandering the network ---------- */
@@ -262,7 +273,7 @@ export function startScene(model) {
     agents.push({ s, edge, dir, t: Math.random(), speed: 0.08 + Math.random() * 0.1 });
   };
   for (const e of edges) {
-    const count = e.kind === 'stated' ? 2 : e.kind === 'inferred' ? 1 : Math.random() < 0.6 ? 1 : 0;
+    const count = e.kind === 'stated' ? 2 : e.kind === 'inferred' || e.kind === 'branch' ? 1 : Math.random() < 0.5 ? 1 : 0;
     for (let i = 0; i < count; i++) spawnAgent(e, Math.random() < 0.5 ? 1 : -1);
   }
 
@@ -273,7 +284,7 @@ export function startScene(model) {
     el.className = 'label' + (n.isHQ ? ' hq' : '');
     el.innerHTML = `<span class="num"></span><span class="name"></span><span class="tag"></span>`;
     el.querySelector('.num').textContent = n.isHQ ? 'HQ' : n.num;
-    el.querySelector('.name').textContent = n.name.replace(/\s*\(.*\)/, '');
+    el.querySelector('.name').textContent = n.isGhost ? 'empty room' : n.name.replace(/\s*\(.*\)/, '');
     el.querySelector('.tag').textContent = n.tagline;
     el.addEventListener('pointerenter', () => setHover(n));
     el.addEventListener('pointerleave', () => setHover(null));
@@ -281,33 +292,56 @@ export function startScene(model) {
     labelsEl.append(el);
     labelFor.set(n, el);
   }
-  const clusterLabels = model.clusters.map((c) => {
+  const clusterLabels = model.clusters.filter((c) => c.id !== model.hq.cluster).map((c) => {
     const el = document.createElement('div');
     el.className = 'label cluster';
-    el.textContent = c.label;
+    const count = model.nodes.filter((n) => n.cluster === c.id && !n.isGhost).length;
+    el.innerHTML = `<span class="name"></span><span class="count"></span>`;
+    el.querySelector('.name').textContent = c.label;
+    el.querySelector('.count').textContent = count ? `${count} room${count > 1 ? 's' : ''}` : 'coming';
+    el.title = c.blurb || '';
+    el.addEventListener('click', () => flyToCluster(c));
     labelsEl.append(el);
-    return { el, pos: c.vCenter.clone().add(new THREE.Vector3(0, c.radius + 6.5, 0)) };
+    return { el, c, pos: c.vCenter.clone().add(new THREE.Vector3(0, c.radius + 5.5, 0)) };
   });
 
   /* ---------- left index + filters ---------- */
   const indexEl = document.getElementById('index');
   const indexBtn = new Map();
-  const groups = [{ id: '__hq', label: 'HQ', nodes: [model.hq] },
-    ...model.clusters.map((c) => ({ id: c.id, label: c.label, nodes: model.nodes.filter((n) => n.cluster === c.id && !n.isHQ) }))];
+  const groups = model.clusters.map((c) => ({ id: c.id, label: c.label, nodes: model.nodes.filter((n) => n.cluster === c.id) }));
+  const groupEls = new Map();
   for (const gr of groups) {
-    const h = document.createElement('h3');
-    h.textContent = gr.label;
-    indexEl.append(h);
+    const c = clusterById.get(gr.id);
+    const h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'grp';
+    const real = gr.nodes.filter((n) => !n.isGhost).length;
+    h.innerHTML = `<span></span><span class="cnt"></span>`;
+    h.children[0].textContent = gr.label;
+    h.children[1].textContent = gr.id === model.hq.cluster ? '' : real ? String(real) : '·';
+    const rooms = document.createElement('div');
+    rooms.className = 'rooms';
+    rooms.hidden = true;
+    h.addEventListener('click', () => {
+      if (gr.id === model.hq.cluster) { select(model.hq); return; }
+      const open = rooms.hidden;
+      for (const g of groupEls.values()) { g.rooms.hidden = true; g.h.classList.remove('open'); }
+      rooms.hidden = !open;
+      h.classList.toggle('open', open);
+      if (open) flyToCluster(c);
+    });
+    indexEl.append(h, rooms);
+    groupEls.set(gr.id, { h, rooms });
     for (const n of gr.nodes) {
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = `<span class="n"></span><span></span>`;
       b.children[0].textContent = n.isHQ ? '◆' : n.num;
-      b.children[1].textContent = n.name.replace(/\s*\(.*\)/, '');
+      b.children[1].textContent = n.isGhost ? 'empty room' : n.name.replace(/\s*\(.*\)/, '');
       b.addEventListener('click', () => select(n));
       b.addEventListener('pointerenter', () => setHover(n));
       b.addEventListener('pointerleave', () => setHover(null));
-      indexEl.append(b);
+      rooms.append(b);
       indexBtn.set(n, b);
     }
   }
@@ -332,7 +366,7 @@ export function startScene(model) {
 
   /* ---------- status box ---------- */
   {
-    const total = model.nodes.length;
+    const total = model.nodes.filter((n) => !n.isGhost).length;
     const live = model.nodes.filter((n) => n.status === 'active').length;
     setTimeout(() => {
       document.getElementById('status-text').textContent = `${live}/${total} ROOMS LIVE · ${agents.length} AGENTS`;
@@ -356,10 +390,10 @@ export function startScene(model) {
       if (focus) v = lit.has(n) ? 1 : 0.14;
       else if (activeTag) v = matchesFilter(n) ? 1 : 0.12;
       n.visTarget = v;
+      n.lit = focus ? lit.has(n) : activeTag ? matchesFilter(n) : false;
       n.scaleTarget = n === focus ? 1.18 : 1;
       const el = labelFor.get(n);
       el.classList.toggle('hot', n === focus);
-      el.classList.toggle('dim', v < 0.5);
       indexBtn.get(n).classList.toggle('dim', !focus && activeTag && !matchesFilter(n));
     }
     for (const e of edges) {
@@ -391,11 +425,20 @@ export function startScene(model) {
     // Keep a pleasant angle: not from directly below, not too flat.
     dir.y = THREE.MathUtils.clamp(dir.y, 0.12, 0.6);
     dir.normalize();
-    const dist = n.isHQ ? 26 : 11 + n.size * 2.4;
+    const dist = n.isHQ ? 28 : 16 + n.size * 2.6;
     // Shift the focus point slightly right so the panel on the right doesn't cover the cube.
     const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
     const target = n.pos.clone().add(right.multiplyScalar(dist * 0.18));
     flyTo(target.clone().add(dir.multiplyScalar(dist)), target);
+  }
+
+  function flyToCluster(c) {
+    const dir = camera.position.clone().sub(controls.target).normalize();
+    dir.y = THREE.MathUtils.clamp(dir.y, 0.15, 0.5);
+    dir.normalize();
+    const dist = c.radius * 2.2 + 20;
+    flyTo(c.vCenter.clone().add(dir.multiplyScalar(dist)), c.vCenter, 1.4);
+    lastInteraction = performance.now();
   }
 
   /* ---------- panel ---------- */
@@ -405,7 +448,7 @@ export function startScene(model) {
     panel.hidden = false;
     // restart entrance animation
     panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
-    panel.querySelector('.panel-num').textContent = n.isHQ ? 'HQ · CENTRE OF EVERYTHING' : `${n.num} · ${clusterLabel[n.cluster].toUpperCase()}`;
+    panel.querySelector('.panel-num').textContent = n.isHQ ? 'HQ · CENTRE OF EVERYTHING' : n.isGhost ? 'EMERGING · NOT BUILT YET' : `${n.num} · ${clusterLabel[n.cluster].toUpperCase()}`;
     panel.querySelector('.panel-name').textContent = n.name;
     const st = panel.querySelector('.panel-status');
     st.className = `panel-status st-${n.status}`;
@@ -434,7 +477,8 @@ export function startScene(model) {
       linksEl.append(h, ul);
     }
     const visit = panel.querySelector('.panel-visit');
-    visit.href = n.href;
+    visit.hidden = !n.href;
+    if (n.href) visit.href = n.href;
     visit.textContent = n.isHQ ? 'Enter HQ ↗' : 'Enter project ↗';
   }
 
@@ -443,7 +487,8 @@ export function startScene(model) {
     fillPanel(n);
     if (fly) flyToNode(n);
     for (const [m, b] of indexBtn) b.classList.toggle('on', m === n);
-    document.getElementById('here').textContent = n.isHQ ? 'HQ' : `${clusterLabel[n.cluster]} / ${n.name.replace(/\s*\(.*\)/, '')}`;
+    for (const [id, g] of groupEls) { const on = id === n.cluster && id !== model.hq.cluster; g.rooms.hidden = !on; g.h.classList.toggle('open', on); }
+    document.getElementById('here').textContent = n.isHQ ? 'HQ' : `${clusterLabel[n.cluster]} / ${n.isGhost ? 'empty room' : n.name.replace(/\s*\(.*\)/, '')}`;
     history.replaceState(null, '', `#${n.id}`);
     refreshFocus();
   }
@@ -594,11 +639,19 @@ export function startScene(model) {
       const wp = n.obj.position.clone().add(new THREE.Vector3(0, n.size * 0.62 * n.obj.scale.x + 0.35, 0));
       if (placeLabel(el, wp, -4) === null) continue;
       const dist = camera.position.distanceTo(n.obj.position);
-      const near = THREE.MathUtils.clamp(1.25 - dist / 140, 0.35, 1);
-      el.style.opacity = el.classList.contains('dim') ? '' : near.toFixed(2);
+      // Quiet by default: names appear for the HQ, for whatever is in focus,
+      // and for rooms the camera has flown close to.
+      const focus = hovered || selected;
+      const show = n.isHQ || n === focus || n.lit || (!focus && !activeTag && dist < 34);
+      el.classList.toggle('show', show);
       el.style.zIndex = String(1000 - Math.round(dist));
     }
-    for (const c of clusterLabels) placeLabel(c.el, c.pos);
+    for (const cl of clusterLabels) {
+      if (placeLabel(cl.el, cl.pos) === null) continue;
+      const d = camera.position.distanceTo(cl.c.vCenter);
+      // Cluster names give way to room names once you're inside the cluster.
+      cl.el.classList.toggle('show', d > cl.c.radius * 2 + 16);
+    }
 
     composer.render();
   }

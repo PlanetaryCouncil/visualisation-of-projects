@@ -4,6 +4,7 @@
   "_relative_base_note": "Projects with a url starting with '/' (e.g. /basex) are resolved against this. Empty = same site that hosts this page. Set to e.g. https://planetarycouncil.org if those pages live there.",
   "priority": [
     "Planetary Council",
+    "Mars Robertson",
     "Independent Tribunal",
     "BaseX",
     "Network State Genesis",
@@ -26,96 +27,186 @@
   ],
   "clusters": [
     {
-      "id": "governance",
-      "label": "Governance",
-      "blurb": "The HQ and the institutions around it",
+      "id": "hq",
+      "label": "HQ",
+      "blurb": "The centre everything connects back to",
       "center": [
         0,
         0,
         0
       ],
-      "radius": 14,
+      "radius": 0,
       "tilt": [
-        0.22,
         0,
-        0.06
+        0,
+        0
       ],
       "members": [
-        "Planetary Council",
+        "Planetary Council"
+      ]
+    },
+    {
+      "id": "person",
+      "label": "Person",
+      "blurb": "The person, the body, the notes",
+      "center": [
+        -19,
+        10,
+        -10
+      ],
+      "radius": 5.5,
+      "tilt": [
+        1.1,
+        0.2,
+        0.2
+      ],
+      "members": [
+        "Mars Robertson",
+        "Personal Wiki",
+        "Dating Relating",
+        "Ultra Magic Hands"
+      ]
+    },
+    {
+      "id": "institutions",
+      "label": "Institutions",
+      "blurb": "New bodies for governance and justice",
+      "center": [
+        18,
+        -1,
+        6
+      ],
+      "radius": 5.5,
+      "tilt": [
+        1.0,
+        -0.3,
+        0
+      ],
+      "members": [
         "Independent Tribunal",
         "BaseX",
         "Network State Genesis",
-        "Ministry of Memes and Better Propaganda",
         "Legal Screenshot"
       ]
     },
     {
-      "id": "imagination",
-      "label": "Imagination",
-      "blurb": "Art, money, music and futures",
+      "id": "culture",
+      "label": "Culture & Memes",
+      "blurb": "Propaganda for the good guys, music, jokes",
       "center": [
-        -30,
-        9,
-        -8
+        -36,
+        -5,
+        -2
       ],
-      "radius": 8.5,
+      "radius": 5,
       "tilt": [
-        1.05,
-        0.35,
-        0.15
+        1.1,
+        0.4,
+        0.1
       ],
       "members": [
-        "Money from the Future",
-        "Art Benchmark",
+        "Ministry of Memes and Better Propaganda",
         "Marsita the Ultra",
-        "Future Vision XPRIZE",
-        "Publishing Pipeline"
+        "Laughter Scale"
       ]
     },
     {
-      "id": "ai-lab",
-      "label": "AI Lab",
-      "blurb": "Agents and machine-made art, in the open",
+      "id": "value",
+      "label": "Value & Futures",
+      "blurb": "What money is, what the future could be",
       "center": [
-        30,
-        9,
-        -8
+        -34,
+        22,
+        -34
       ],
-      "radius": 8.5,
+      "radius": 4.5,
       "tilt": [
-        1.05,
-        -0.35,
-        -0.15
+        1.2,
+        0.3,
+        0
+      ],
+      "members": [
+        "Money from the Future",
+        "Future Vision XPRIZE"
+      ]
+    },
+    {
+      "id": "agents",
+      "label": "AI Agents",
+      "blurb": "Agents working, and failing, in the open",
+      "center": [
+        42,
+        8,
+        -14
+      ],
+      "radius": 5,
+      "tilt": [
+        1.1,
+        -0.4,
+        -0.1
       ],
       "members": [
         "Live Agent Fleet (Command & Control Dashboard)",
         "AI Brain Farts",
-        "Laughter Scale",
+        "Publishing Pipeline"
+      ]
+    },
+    {
+      "id": "gallery",
+      "label": "Gallery",
+      "blurb": "Machine-made and human-made art",
+      "center": [
+        30,
+        26,
+        -42
+      ],
+      "radius": 5,
+      "tilt": [
+        1.2,
+        -0.3,
+        0
+      ],
+      "members": [
+        "Art Benchmark",
         "Selfie Gallery",
         "Haiku Command-Line Poems"
       ]
     },
     {
-      "id": "life",
-      "label": "Life",
-      "blurb": "Homes, people, bodies, notes",
+      "id": "land",
+      "label": "Land",
+      "blurb": "Homes rooted in nature, powered by the sun",
       "center": [
-        0,
-        22,
-        -30
+        16,
+        -9,
+        -34
       ],
-      "radius": 8,
+      "radius": 4,
       "tilt": [
-        1.15,
+        1.1,
         0,
         0
       ],
       "members": [
-        "Solarpunk Estates",
-        "Personal Wiki",
-        "Dating Relating",
-        "Ultra Magic Hands"
+        "Solarpunk Estates"
       ]
+    },
+    {
+      "id": "emerging",
+      "label": "Emerging",
+      "blurb": "Rooms not built yet. Autonomous projects will appear here.",
+      "center": [
+        0,
+        34,
+        -62
+      ],
+      "radius": 6,
+      "tilt": [
+        1.2,
+        0,
+        0
+      ],
+      "members": []
     }
   ],
   "inferred_links": [
@@ -163,11 +254,12 @@
       "from": "Laughter Scale",
       "to": "Ministry of Memes and Better Propaganda",
       "why": "Humour as a carrier for ideas"
-    },
-    {
-      "from": "Personal Wiki",
-      "to": "Planetary Council",
-      "why": "Facts and sources behind the ideas"
     }
-  ]
+  ],
+  "emerging": {
+    "cluster": "emerging",
+    "count": 4,
+    "tagline": "An empty room, waiting",
+    "about": "Autonomous projects and rooms will emerge here: started by people, by agents, or by both. Nothing lives here yet. Useful: propose what should."
+  }
 }
