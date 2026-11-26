@@ -22,7 +22,7 @@ The map reads one JSON document. The dashboard is the source of truth; this repo
 
 | Field | Required | How the map uses it |
 | --- | --- | --- |
-| `hq` | yes | Name of the project drawn at the centre (the heart). |
+| `hq` | yes | Name of the project drawn at the centre. |
 | `projects[]` order | yes | Priority. First = most important: bigger cube, top of the mobile list. |
 | `name` | yes | Label, and the key that `part_of` / `connects_to` refer to. Must be unique. |
 | `tagline` | yes | The one line shown when a project is opened. |
@@ -30,8 +30,9 @@ The map reads one JSON document. The dashboard is the source of truth; this repo
 | `status` | yes | Shown as text in the panel. All projects are drawn in one colour. |
 | `cluster` | no | Projects with the same cluster are pulled together when auto-placed. Not drawn. Current clusters: `governance`, `art`, `mars`. |
 | `tags` | no | Shared tags pull projects slightly together. |
-| `part_of` | no | Parent projects ("this is part of that"). Drawn as a solid, thicker line. |
-| `connects_to` | no | Siblings. Drawn as a dashed line, either direction. Not every sibling needs one. A pair with both a parent and a sibling link shows the parent line. |
+| `part_of` | no | Parent projects ("this is part of that"). Drawn as a single line. |
+| `connects_to` | no | Siblings. Drawn as a double line, either direction. Not every sibling needs one. A pair with both a parent and a sibling link shows the parent line. |
+| `standalone` | no | `true` = self-sufficient, no external dependencies. Drawn as a triangular pyramid instead of a cube. |
 | `about` | no | Longer description (AI-polished). Not displayed. |
 | `mars_wrote` | no | Mars’s own words, kept verbatim and never rewritten. Not displayed. |
 
@@ -45,4 +46,4 @@ A new project needs nothing more than an entry in `projects`; the layout places 
 { "Planetary Council": { "pos": [0, 0, 0], "size": 1.5 } }
 ```
 
-The in-page editor (press `E`) exports `layout`, `part_of` and `connects_to` together. `layout` goes into `data/layout.json`; `part_of` and `connects_to` go into the project data (and the dashboard).
+The in-page editor (press `E`) exports `layout`, `part_of`, `connects_to` and `standalone` together. `layout` goes into `data/layout.json`; the rest go into the project data (and the dashboard).

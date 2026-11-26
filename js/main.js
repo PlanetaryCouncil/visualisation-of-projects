@@ -110,7 +110,7 @@ async function boot() {
   const want3D = forced === '3d' || (forced !== 'list' && !matchMedia('(max-width: 820px)').matches);
   if (want3D && hasWebGL()) {
     try {
-      const { startScene } = await import('./scene.js?v=7');
+      const { startScene } = await import('./scene.js?v=8');
       await startScene(model, { neighbours, shortName, statusLabel, layoutUrl: LAYOUT });
       return;
     } catch (err) {

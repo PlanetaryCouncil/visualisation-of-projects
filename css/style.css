@@ -50,7 +50,7 @@ button { font: inherit; color: inherit; }
   will-change: transform;
 }
 .label.show { opacity: 1; pointer-events: auto; }
-.label.core { font-size: 15px; color: #fff; text-shadow: 0 0 10px rgba(255,59,59,.7), 0 0 14px rgba(57,255,136,.5); }
+.label.core { font-size: 15px; color: #fff; text-shadow: 0 0 12px rgba(57,255,136,.6); }
 .label:not(.core):not(.group) { font-size: 11px; }
 .label.hot { color: #fff; }
 .label.dim { opacity: .25; }
@@ -109,7 +109,7 @@ button { font: inherit; color: inherit; }
 .m-nav a.on { color: var(--bg); background: var(--neon); border-color: var(--neon); }
 .m-cards { padding: 10px 16px 24px; display: grid; gap: 12px; }
 .m-card { scroll-margin-top: 64px; padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--glass); }
-.m-card.core { border-color: rgba(255,59,59,.45); }
+.m-card.core { border-color: rgba(57,255,136,.5); }
 .m-card h2 { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 400; font-size: 20px; margin: 0 0 6px; color: #fff; line-height: 1.2; }
 .m-tagline { font-size: 13px; line-height: 1.5; margin: 0 0 14px; color: var(--ink-dim); }
 

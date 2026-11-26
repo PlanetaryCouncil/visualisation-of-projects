@@ -2,17 +2,19 @@
 // frame is drawn only when something changed (orbit, zoom, hover, edit).
 //
 // Lines come from the source data:
-//   part_of     -> solid "parent" line (this project is part of that one)
-//   connects_to -> dashed "sibling" line
+//   part_of     -> single line (parent -> child)
+//   connects_to -> double line (siblings)
+//   standalone  -> drawn as a triangular pyramid instead of a cube
 // Positions and sizes saved in data/layout.json win; any project missing
 // there is placed by a small force simulation (lines, cluster, shared tags).
 //
 // Editing (press E, or hold Alt):
 //   Alt + drag a project          move it (in the plane facing you)
 //   Alt + scroll over a project   make it bigger / smaller (thicker border)
-//   E opens the editor box, where you can also pick a line tool:
-//     parent  -> drag from the parent to the child
-//     sibling -> drag from one project to the other
+//   E opens the editor box, with tools:
+//     parent  -> drag from the parent to the child (single line)
+//     sibling -> drag from one project to the other (double line)
+//     shape   -> click a project: cube <-> pyramid (standalone)
 //   Dragging the same line again removes it.
 // The box holds the whole arrangement as JSON to paste back into the data.
 import * as THREE from 'three';
@@ -24,7 +26,6 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 const NEON = 0x39ff88;
-const LOVE = 0xff3b3b;
 const BORDER_PX = 1.3;                       // border width at size 1
 const SIZE_MIN = 0.4, SIZE_MAX = 4;
 const DRAFT_KEY = 'projects-multiverse:draft-v2';
@@ -100,22 +101,6 @@ function glowTexture() {
   return tex;
 }
 
-function heartGeometry() {
-  const s = new THREE.Shape();
-  s.moveTo(25, 25);
-  s.bezierCurveTo(25, 25, 20, 0, 0, 0);
-  s.bezierCurveTo(-30, 0, -30, 35, -30, 35);
-  s.bezierCurveTo(-30, 55, -10, 77, 25, 95);
-  s.bezierCurveTo(60, 77, 80, 55, 80, 35);
-  s.bezierCurveTo(80, 35, 80, 0, 50, 0);
-  s.bezierCurveTo(35, 0, 25, 25, 25, 25);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: 18, bevelEnabled: true, bevelSize: 6, bevelThickness: 6, bevelSegments: 2, curveSegments: 12 });
-  geo.center();
-  geo.rotateZ(Math.PI);
-  geo.scale(0.034, 0.034, 0.034);
-  return geo;
-}
-
 export async function startScene(model, { neighbours, shortName, statusLabel, layoutUrl }) {
   let saved = {};
   try {
@@ -129,6 +114,11 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     model.links = draft.lines
       .map(([a, b, kind]) => ({ a: byName.get(a), b: byName.get(b), kind }))
       .filter((l) => l.a && l.b && (l.kind === 'parent' || l.kind === 'sibling'));
+  }
+
+  if (Array.isArray(draft?.standalone)) {
+    const set = new Set(draft.standalone);
+    for (const n of model.nodes) n.standalone = set.has(n.name);
   }
 
   document.getElementById('stage').hidden = false;
@@ -183,42 +173,46 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x7dffb0, size: 0.9, transparent: true, opacity: 0.45, fog: false })));
   }
 
-  /* ---------- nodes: all one colour; size = attention ---------- */
+  /* ---------- nodes: one colour; size = attention; cube or pyramid ---------- */
   const pickables = [];
+  const bodyGeometry = (n) => n.standalone
+    ? new THREE.ConeGeometry(n.size * 0.85, n.size * 1.35, 3, 1)      // triangular pyramid
+    : new THREE.BoxGeometry(n.size, n.size, n.size);
+  function buildBody(n) {
+    if (n.body) {
+      n.obj.remove(n.body);
+      pickables.splice(pickables.indexOf(n.face), 1);
+      fatMaterials.delete(n.borderMat);
+      n.body.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+    }
+    const body = new THREE.Group();
+    const geo = bodyGeometry(n);
+    const face = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.08, depthWrite: false }));
+    face.userData.node = n;
+    pickables.push(face);
+    const borderMat = fat({ color: NEON, linewidth: BORDER_PX * n.k, opacity: 1 });
+    const border = new LineSegments2(new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(geo)), borderMat);
+    const s = n.size * 0.38;
+    const innerGeo = n.standalone ? new THREE.ConeGeometry(s * 0.72, s * 1.15, 3, 1) : new THREE.BoxGeometry(s, s, s);
+    const inner = new THREE.LineSegments(new THREE.EdgesGeometry(innerGeo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
+    if (!n.standalone) inner.rotation.set(0.6, 0.8, 0);
+    body.add(face, border, inner);
+    n.obj.add(body);
+    Object.assign(n, { body, face, borderMat });
+    n.mats = [{ m: face.material, base: 0.08 }, { m: borderMat, base: 1 }, { m: inner.material, base: 0.6 }, n.haloMat];
+  }
   for (const n of model.nodes) {
-    const size = n.isCore ? 4.4 : Math.max(1.6, 2.8 - n.rank * 0.05);
-    n.size = size;
+    n.size = n.isCore ? 4.4 : Math.max(1.6, 2.8 - n.rank * 0.05);
     n.k = THREE.MathUtils.clamp(Number(saved[n.name]?.size) || 1, SIZE_MIN, SIZE_MAX);
     const g = new THREE.Group();
     g.position.copy(n.start);
     g.rotation.set(0.15, (n.rank * 0.7) % Math.PI, 0);
-    const box = new THREE.BoxGeometry(size, size, size);
-    const face = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.08, depthWrite: false }));
-    face.userData.node = n;
-    pickables.push(face);
-    const borderMat = fat({ color: NEON, linewidth: BORDER_PX * n.k, opacity: 1 });
-    const border = new LineSegments2(new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(box)), borderMat);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: NEON, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
-    halo.scale.setScalar(size * 2);
-    g.add(face, border, halo);
-    const mats = [{ m: face.material, base: 0.08 }, { m: borderMat, base: 1 }, { m: halo.material, base: 0.25 }];
-    if (n.isCore) {
-      halo.material.opacity = mats[2].base = 0.05;
-      const heart = new THREE.Mesh(heartGeometry(), new THREE.MeshBasicMaterial({ color: LOVE }));
-      heart.rotation.y = -g.rotation.y;
-      const heartGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: LOVE, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
-      heartGlow.scale.setScalar(7);
-      const twin = new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.45 }));
-      twin.rotation.set(Math.PI / 4, Math.PI / 4, 0);
-      g.add(heart, heartGlow, twin);
-      mats.push({ m: twin.material, base: 0.45 });
-    } else {
-      const inner = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 0.38, size * 0.38, size * 0.38)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
-      inner.rotation.set(0.6, 0.8, 0);
-      g.add(inner);
-      mats.push({ m: inner.material, base: 0.6 });
-    }
-    Object.assign(n, { obj: g, mats, borderMat });
+    halo.scale.setScalar(n.size * 2);
+    g.add(halo);
+    n.obj = g;
+    n.haloMat = { m: halo.material, base: 0.25 };
+    buildBody(n);
     n.pos = g.position;              // one vector: moving the group moves the project
     scene.add(g);
   }
@@ -227,37 +221,54 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     n.borderMat.linewidth = BORDER_PX * n.k * (n === focus ? 1.3 : 1);
   };
 
-  /* ---------- lines: solid = parent, dashed = sibling ---------- */
-  const STYLE = {
-    parent: { linewidth: 2.4, base: 0.85, dashed: false },
-    sibling: { linewidth: 1.2, base: 0.55, dashed: true, dashSize: 0.7, gapSize: 0.6 },
-  };
+  /* ---------- lines: single = parent -> child, double = siblings ---------- */
+  const LINE_PX = 1.3;
+  const LINE_BASE = 0.7;
+  const GAP_PX = 2.6;                // half the gap between the two strands of a sibling line
   const incident = new Map(model.nodes.map((n) => [n, []]));
-  const curve = (A, B) => {
+  const curvePts = (A, B) => {
     const ctrl = A.clone().lerp(B, 0.5).add(new THREE.Vector3(0, A.distanceTo(B) * 0.2, 0));
-    return new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24).flatMap((p) => [p.x, p.y, p.z]);
+    return new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24);
   };
+  const flat = (pts) => pts.flatMap((p) => [p.x, p.y, p.z]);
+  // A sibling line is two strands, offset sideways as seen from the camera,
+  // so it reads as a double line from any angle (recomputed when the view moves).
+  const pxToWorld = (p) => camera.position.distanceTo(p) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 2 / H;
+  const tA = new THREE.Vector3(), vA = new THREE.Vector3(), nA = new THREE.Vector3();
   function redrawLink(l) {
-    l.line.geometry.setPositions(curve(l.a.pos, l.b.pos));
-    l.line.computeLineDistances();
+    const pts = curvePts(l.a.pos, l.b.pos);
+    if (l.kind === 'parent') { l.lines[0].geometry.setPositions(flat(pts)); return; }
+    const left = [], right = [];
+    pts.forEach((p, i) => {
+      tA.subVectors(pts[Math.min(i + 1, pts.length - 1)], pts[Math.max(i - 1, 0)]);
+      vA.subVectors(camera.position, p);
+      nA.crossVectors(tA, vA).normalize().multiplyScalar(GAP_PX * pxToWorld(p));
+      left.push(p.x + nA.x, p.y + nA.y, p.z + nA.z);
+      right.push(p.x - nA.x, p.y - nA.y, p.z - nA.z);
+    });
+    l.lines[0].geometry.setPositions(left);
+    l.lines[1].geometry.setPositions(right);
   }
   function drawLink(l) {
-    const { base, ...matOpts } = STYLE[l.kind];
-    l.base = base;
-    l.line = new Line2(new LineGeometry(), fat({ color: NEON, opacity: base, ...matOpts }));
+    l.base = LINE_BASE;
+    l.lines = Array.from({ length: l.kind === 'parent' ? 1 : 2 }, () =>
+      new Line2(new LineGeometry(), fat({ color: NEON, opacity: LINE_BASE, linewidth: LINE_PX })));
     redrawLink(l);
-    scene.add(l.line);
+    for (const ln of l.lines) scene.add(ln);
     incident.get(l.a).push(l);
     incident.get(l.b).push(l);
   }
   function eraseLink(l) {
-    scene.remove(l.line);
-    l.line.geometry.dispose();
-    fatMaterials.delete(l.line.material);
-    l.line.material.dispose();
+    for (const ln of l.lines) {
+      scene.remove(ln);
+      ln.geometry.dispose();
+      fatMaterials.delete(ln.material);
+      ln.material.dispose();
+    }
     for (const n of [l.a, l.b]) incident.set(n, incident.get(n).filter((x) => x !== l));
     model.links.splice(model.links.indexOf(l), 1);
   }
+  const siblingLines = () => model.links.filter((l) => l.kind === 'sibling');
   model.links.forEach(drawLink);
 
   /* ---------- labels: always on ---------- */
@@ -293,7 +304,10 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
       labelFor.get(n).classList.toggle('hot', n === focus);
       labelFor.get(n).classList.toggle('dim', !!focus && !n.lit);
     }
-    for (const l of model.links) l.line.material.opacity = !focus ? l.base : (l.a === focus || l.b === focus) ? 1 : l.base * 0.15;
+    for (const l of model.links) {
+      const o = !focus ? l.base : (l.a === focus || l.b === focus) ? 1 : l.base * 0.15;
+      for (const ln of l.lines) ln.material.opacity = o;
+    }
     invalidate();
   }
   function setHover(n) {
@@ -397,6 +411,15 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     const mode = ev.altKey ? 'move' : !editor.hidden ? tool : null;
     if (!mode || ev.button !== 0) return false;
     ev.preventDefault();
+    if (mode === 'shape') {
+      n.standalone = !n.standalone;
+      buildBody(n);
+      justEdited = true;
+      setTimeout(() => { justEdited = false; }, 0);
+      saveDraft();
+      refreshFocus();
+      return true;
+    }
     controls.enabled = false;
     plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()), n.pos);
     const hit = onPlane(ev);
@@ -470,6 +493,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   const snapshot = () => ({
     layout: Object.fromEntries(model.nodes.map((n) => [n.name, { pos: n.pos.toArray().map(round), size: round(n.k) }])),
     lines: model.links.map((l) => [l.a.name, l.b.name, l.kind]),
+    standalone: model.nodes.filter((n) => n.standalone).map((n) => n.name),
   });
   function exportText() {
     const s = snapshot();
@@ -479,7 +503,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
       else (connects_to[a] ||= []).push(b);
     }
     const rows = (o) => Object.entries(o).map(([k, v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(',\n');
-    return `{\n  "layout": {\n${rows(s.layout)}\n  },\n  "part_of": {\n${rows(part_of)}\n  },\n  "connects_to": {\n${rows(connects_to)}\n  }\n}`;
+    return `{\n  "layout": {\n${rows(s.layout)}\n  },\n  "part_of": {\n${rows(part_of)}\n  },\n  "connects_to": {\n${rows(connects_to)}\n  },\n  "standalone": ${JSON.stringify(s.standalone)}\n}`;
   }
   function showEditor() {
     editor.hidden = false;
@@ -546,6 +570,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     camera.updateProjectionMatrix();
     renderer.setSize(W, H);
     for (const m of fatMaterials) m.resolution.set(W, H);
+    siblingLines().forEach(redrawLink);
     invalidate();
   });
 
@@ -560,6 +585,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     return true;
   }
 
+  const lastCam = new THREE.Vector3(Infinity, 0, 0);
   function frame() {
     requestAnimationFrame(frame);
     if (pendingMove) { setHover(pick(pendingMove)); pendingMove = null; }
@@ -574,6 +600,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     controls.update();               // fires 'change' (and so dirty) only while moving
     if (!dirty) return;
     dirty = false;
+    if (!camera.position.equals(lastCam)) { lastCam.copy(camera.position); siblingLines().forEach(redrawLink); }
 
     for (const n of model.nodes) {
       const label = labelFor.get(n);
