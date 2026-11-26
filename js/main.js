@@ -109,15 +109,15 @@ function hasWebGL() {
 }
 
 async function boot() {
-  const res = await fetch(SOURCE);
+  const res = await fetch(SOURCE, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`${SOURCE}: ${res.status}`);
   const model = buildModel(await res.json());
   const forced = params.get('view');
   const want3D = forced === '3d' || (forced !== 'list' && !matchMedia('(max-width: 820px)').matches);
   if (want3D && hasWebGL()) {
     try {
-      const { startScene } = await import('./scene.js');
-      startScene(model);
+      const { startScene } = await import('./scene.js?v=5');
+      startScene(model, { neighbours, shortName, statusLabel });
       return;
     } catch (err) {
       console.error('3D failed, falling back to list', err);

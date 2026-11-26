@@ -19,6 +19,22 @@
       "said": "main ---> the HQ #governance #climate"
     },
     {
+      "name": "Live Agent Fleet (Command & Control Dashboard)",
+      "status": "active",
+      "tagline": "A transparent, public AI-agent operations dashboard",
+      "url": "",
+      "tags": [
+        "governance",
+        "productivity",
+        "automation"
+      ],
+      "connects_to": [
+        "Mars Robertson"
+      ],
+      "about": "This board. AI agents running in the open, every proposal and review public. Useful: pick up an open issue, review a branch, report a bug.",
+      "said": "#governance #productivity"
+    },
+    {
       "name": "Independent Tribunal",
       "cluster": "governance",
       "status": "active",
@@ -88,7 +104,7 @@
     {
       "name": "Network State Genesis",
       "cluster": "governance",
-      "status": "quiet",
+      "status": "active",
       "tagline": "A new model of a state with aligned values",
       "url": "/network-state-genesis",
       "tags": [
@@ -114,22 +130,6 @@
       "connects_to": [],
       "about": "Imagination and storytelling: expanding the horizons of the imaginable. The competition entry is done; the stories carry on. Useful: visions of the future worth building toward.",
       "said": "imagination, storytelling #art #imagination"
-    },
-    {
-      "name": "Live Agent Fleet (Command & Control Dashboard)",
-      "status": "active",
-      "tagline": "A transparent, public AI-agent operations dashboard",
-      "url": "",
-      "tags": [
-        "governance",
-        "productivity",
-        "automation"
-      ],
-      "connects_to": [
-        "Mars Robertson"
-      ],
-      "about": "This board. AI agents running in the open, every proposal and review public. Useful: pick up an open issue, review a branch, report a bug.",
-      "said": "#governance #productivity"
     },
     {
       "name": "Selfie Gallery",
@@ -224,7 +224,7 @@
       "name": "Legal Screenshot",
       "cluster": "governance",
       "status": "active",
-      "tagline": "Timestamped, legally defensible screenshots. Next: a business.",
+      "tagline": "Timestamped, legally defensible screenshots",
       "url": "https://legalscreenshot.com",
       "tags": [],
       "connects_to": [

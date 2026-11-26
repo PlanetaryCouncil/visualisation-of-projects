@@ -8,9 +8,8 @@
 //   - everything repels a little; the core (hq) sits at the centre.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { neighbours, shortName, statusLabel } from './main.js';
 
-const STATUS_COLOR = { 'active': 0x39ff88, 'quiet': 0x2f9e5f, 'awaiting-deployment': 0xffc857, 'done': 0x5ce1ff, 'for-sale': 0xff5c8a };
+const STATUS_COLOR = { 'active': 0x39ff88, 'awaiting-deployment': 0xffc857, 'done': 0x5ce1ff, 'for-sale': 0xff5c8a };
 const NEON = 0x39ff88;
 const LOVE = 0xff3b3b;
 
@@ -93,7 +92,7 @@ function heartGeometry() {
   return geo;
 }
 
-export function startScene(model) {
+export function startScene(model, { neighbours, shortName, statusLabel }) {
   document.getElementById('stage').hidden = false;
   const host = document.getElementById('gl');
   const labelsEl = document.getElementById('labels');
