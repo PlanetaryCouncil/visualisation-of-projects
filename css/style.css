@@ -10,8 +10,8 @@
   --love: #ff3b3b;
   --line: rgba(57, 255, 136, 0.25);
   --glass: rgba(2, 14, 8, 0.66);
-  --mono: "JetBrains Mono", ui-monospace, monospace;
-  --display: "Share Tech Mono", "JetBrains Mono", ui-monospace, monospace;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --display: "Share Tech Mono", ui-monospace, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -25,6 +25,7 @@ button { font: inherit; color: inherit; }
 .st-awaiting-deployment { color: var(--amber); }
 .st-done { color: var(--cyan); }
 .st-for-sale { color: var(--rose); }
+.st-quiet { color: #2f9e5f; }
 .st-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 
 .brand-name { font-family: var(--display); color: var(--neon); font-size: 20px; letter-spacing: .08em; text-shadow: 0 0 12px rgba(57,255,136,.5); }
@@ -47,23 +48,21 @@ button { font: inherit; color: inherit; }
   font-family: var(--display); font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink); text-shadow: 0 0 8px rgba(57,255,136,.55);
   opacity: 0; pointer-events: none; cursor: pointer;
-  transition: opacity .3s; will-change: transform;
+  will-change: transform;
 }
 .label.show { opacity: 1; pointer-events: auto; }
 .label.core { font-size: 15px; color: #fff; text-shadow: 0 0 10px rgba(255,59,59,.7), 0 0 14px rgba(57,255,136,.5); }
 .label.hot { color: #fff; }
-.label.group { font-size: 10px; letter-spacing: .4em; color: var(--ink-faint); text-shadow: none; text-transform: lowercase; cursor: default; }
-.label.group.show { opacity: .9; pointer-events: none; }
+.label.group { font-size: 13px; letter-spacing: .45em; color: var(--ink-dim); text-shadow: none; cursor: default; }
+.label.group.show { opacity: 1; pointer-events: none; }
 
 .panel {
   position: absolute; right: 28px; top: 50%; transform: translateY(-50%); width: 320px;
   padding: 22px 22px 20px; border: 1px solid var(--line); border-radius: 6px;
-  background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  background: rgba(2, 12, 7, .9);
   box-shadow: 0 0 40px rgba(57,255,136,.08);
   user-select: text; -webkit-user-select: text;
-  animation: panel-in .3s ease;
 }
-@keyframes panel-in { from { opacity: 0; margin-right: -12px; } to { opacity: 1; margin-right: 0; } }
 .panel-close { position: absolute; top: 8px; right: 12px; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--ink-dim); }
 .panel-close:hover { color: #fff; }
 .panel-kicker { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; }
@@ -97,4 +96,3 @@ button { font: inherit; color: inherit; }
 .m-tagline { font-size: 13px; line-height: 1.5; margin: 0 0 14px; color: var(--ink-dim); }
 .m-foot { text-align: center; font-size: 11px; padding: 6px 16px 36px; }
 
-@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }

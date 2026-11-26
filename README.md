@@ -2,7 +2,7 @@
 
 A visualisation layer for the projects tracked on the command dashboard. It holds **no data of its own**: it reads one JSON file and draws it. Static site, no build step.
 
-- **Desktop:** one interconnected 3D network. Planetary Council (global governance) sits at the centre as a heart inside a cube. Stated connections are lines with agents travelling along them. Projects sharing tags drift together, and each tag group is a faint shell; the shells overlap because projects belong to several. Names appear on hover or when you fly close. Click a cube to open it; `←`/`→` step through, `Esc` resets.
+- **Desktop:** one interconnected 3D network. Planetary Council (global governance) sits at the centre as a heart inside a cube. Stated connections are lines. Each `cluster` is a faint shell. Names appear on hover or when you fly close. There is no idle animation: the page draws a frame only when you move, hover or click, so it costs nothing while you read. Click a cube to open it; `←`/`→` step through, `Esc` resets.
 - **Mobile (≤ 820px) or no WebGL:** a list in source order with a sticky jump strip.
 
 ## Data

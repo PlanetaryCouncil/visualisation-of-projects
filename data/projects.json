@@ -3,19 +3,60 @@
   "projects": [
     {
       "name": "Planetary Council",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "An upgrade to global governance",
+      "url": "https://planetarycouncil.org",
       "tags": [
         "governance",
         "climate"
       ],
-      "connects_to": [],
-      "said": "main ---> the HQ #governance #climate",
-      "tagline": "Changing the world through art and culture — an upgrade to global governance",
-      "url": "https://planetarycouncil.org",
+      "connects_to": [
+        "Independent Tribunal",
+        "BaseX.com"
+      ],
+      "about": "The HQ. An upgrade to global governance through art and culture. Every other room connects back here. Useful: ideas that link one project to another, and honest critique of how decisions get made.",
+      "said": "main ---> the HQ #governance #climate"
+    },
+    {
+      "name": "Independent Tribunal",
+      "cluster": "governance",
       "status": "active",
-      "about": "The HQ. An upgrade to global governance through art and culture. Every other room connects back here. Useful: ideas that link one project to another, and honest critique of how decisions get made."
+      "tagline": "A body neither party appoints, for disputes existing authorities cannot fairly hear",
+      "url": "/independent-tribunal",
+      "tags": [
+        "governance"
+      ],
+      "connects_to": [
+        "Planetary Council",
+        "BaseX.com"
+      ],
+      "about": "Close to the top, next to Planetary Council and BaseX. A body neither party appoints, for disputes existing authorities cannot fairly hear. Useful: dispute-resolution design and precedent.",
+      "said": "TOP close to the top, next P C and BaseX #governance"
+    },
+    {
+      "name": "BaseX.com",
+      "cluster": "governance",
+      "status": "awaiting-deployment",
+      "tagline": "A new definition of value — triple bottom line (people, planet, prosperity)",
+      "url": "/basex",
+      "tags": [
+        "climate",
+        "governance",
+        "economy"
+      ],
+      "connects_to": [
+        "Planetary Council"
+      ],
+      "about": "BaseX.com, \"nature means business\". A new definition of value that counts people, planet and prosperity, externalities and co-benefits included. Awaiting deployment. Useful: break the live demo and say what broke.",
+      "said": "call it BaseX.com \"nature means business\", BaseX just like SpaceX, making life mulitplanetary, starting from the Earth, accounting for externalities, and cobenefits, new definition of value ---> connected to P C #governance #climate"
     },
     {
       "name": "Mars Robertson",
+      "cluster": "mars",
+      "status": "active",
+      "tagline": "Multi-dimensional AI artist. The super operator. The time traveller. Singularity. The heart, the person, the purpose. The brain.",
+      "url": "https://wiki.secondrenaissance.net/wiki/Mars_Robertson",
       "tags": [
         "personal",
         "art",
@@ -25,42 +66,31 @@
         "Planetary Council",
         "Personal Wiki"
       ],
-      "said": "project called Mars Robertson, close to Planetary Council, but not necessarily at the core",
-      "tagline": "Multi-dimensional AI artist. The heart, the person, the purpose.",
-      "url": "https://wiki.secondrenaissance.net/wiki/Mars_Robertson",
-      "status": "active",
-      "about": "The person behind the rooms. Art, ideas, AI, memes, magic, impact. Close to Planetary Council, not the core of it. Useful: say hello, collaborate."
-    },
-    {
-      "name": "BaseX",
-      "tags": [
-        "governance",
-        "climate"
-      ],
-      "connects_to": [
-        "Planetary Council"
-      ],
-      "said": "call it BaseX.com \"nature means business\", BaseX just like SpaceX, making life mulitplanetary, starting from the Earth, accounting for externalities, and cobenefits, new definition of value ---> connected to P C #governance #climate",
-      "tagline": "A new definition of value — triple bottom line (people, planet, prosperity)",
-      "url": "/basex",
-      "status": "awaiting-deployment",
-      "about": "BaseX.com, \"nature means business\". A new definition of value that counts people, planet and prosperity, externalities and co-benefits included. Awaiting deployment. Useful: break the live demo and say what broke."
+      "about": "The person behind the rooms. Art, ideas, AI, memes, magic, impact. Close to Planetary Council, not the core of it. Useful: say hello, collaborate.",
+      "said": "project called Mars Robertson, close to Planetary Council, but not necessarily at the core"
     },
     {
       "name": "Money from the Future",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "The best way to make money is to make money",
+      "url": "https://moneyfromthefuture.com",
       "tags": [
         "art",
         "imagination"
       ],
-      "connects_to": [],
-      "said": "artistic project, new currency, better than real money, how can you define real #art #imagination",
-      "tagline": "The best way to make money is to make money",
-      "url": "https://moneyfromthefuture.com",
-      "status": "active",
-      "about": "An art project about a new currency, and about what makes money real in the first place. Useful: imagination, design, and sharp questions about value."
+      "connects_to": [
+        "Network State Genesis"
+      ],
+      "about": "An art project about a new currency, and about what makes money real in the first place. Useful: imagination, design, and sharp questions about value.",
+      "said": "artistic project, new currency, better than real money, how can you define real #art #imagination"
     },
     {
       "name": "Network State Genesis",
+      "cluster": "governance",
+      "status": "quiet",
+      "tagline": "A new model of a state with aligned values",
+      "url": "/network-state-genesis",
       "tags": [
         "governance"
       ],
@@ -68,186 +98,195 @@
         "Money from the Future",
         "Planetary Council"
       ],
-      "said": "the very first network state, multiplanetary from the start... Connected to money and P C #governance",
-      "tagline": "A new model of a state with aligned values",
-      "url": "/network-state-genesis",
-      "status": "active",
-      "about": "The first network state, multiplanetary from the start, built on aligned values. Connected to Money from the Future and Planetary Council. Useful: governance models, constitutions, and what has been tried before."
+      "about": "The first network state, multiplanetary from the start, built on aligned values. Connected to Money from the Future and Planetary Council. Useful: governance models, constitutions, and what has been tried before.",
+      "said": "the very first network state, multiplanetary from the start... Connected to money and P C #governance"
     },
     {
       "name": "Future Vision XPRIZE",
+      "cluster": "art",
+      "status": "done",
+      "tagline": "Imagination athlete — expanding the horizons of the imaginable",
+      "url": "/future-vision-xprize",
       "tags": [
         "art",
         "imagination"
       ],
       "connects_to": [],
-      "said": "imagination, storytelling #art #imagination",
-      "tagline": "Imagination athlete — expanding the horizons of the imaginable",
-      "url": "/future-vision-xprize",
-      "status": "done",
-      "about": "Imagination and storytelling: expanding the horizons of the imaginable. The competition entry is done; the stories carry on. Useful: visions of the future worth building toward."
+      "about": "Imagination and storytelling: expanding the horizons of the imaginable. The competition entry is done; the stories carry on. Useful: visions of the future worth building toward.",
+      "said": "imagination, storytelling #art #imagination"
     },
     {
       "name": "Live Agent Fleet (Command & Control Dashboard)",
+      "status": "active",
+      "tagline": "A transparent, public AI-agent operations dashboard",
+      "url": "",
       "tags": [
         "governance",
-        "productivity"
+        "productivity",
+        "automation"
       ],
-      "connects_to": [],
-      "said": "#governance #productivity",
-      "tagline": "A transparent, public AI-agent operations dashboard",
-      "url": "/",
-      "status": "active",
-      "about": "This board. AI agents running in the open, every proposal and review public. Useful: pick up an open issue, review a branch, report a bug."
+      "connects_to": [
+        "Mars Robertson"
+      ],
+      "about": "This board. AI agents running in the open, every proposal and review public. Useful: pick up an open issue, review a branch, report a bug.",
+      "said": "#governance #productivity"
     },
     {
       "name": "Selfie Gallery",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "ASCII selfies with optional visual interpretations behind secure ultra Reveal",
+      "url": "https://planetarycouncil.github.io/selfie-gallery/",
       "tags": [
         "ai",
         "art"
       ],
       "connects_to": [],
-      "said": "#AI #art",
-      "tagline": "ASCII selfies with optional visual interpretations behind secure ultra Reveal",
-      "url": "https://planetarycouncil.github.io/selfie-gallery/",
-      "status": "active",
-      "about": "Faces drawn in 80 columns of ASCII, with optional visual interpretations. Useful: new interpretations, and ideas for the gallery itself."
+      "about": "Faces drawn in 80 columns of ASCII, with optional visual interpretations. Useful: new interpretations, and ideas for the gallery itself.",
+      "said": "#AI #art"
     },
     {
       "name": "Haiku Command-Line Poems",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "Two-line closing poems from the terminal",
+      "url": "https://poems.planetarycouncil.org",
       "tags": [
         "ai",
         "art"
       ],
       "connects_to": [],
-      "said": "#ai #art",
-      "tagline": "Two-line closing poems from the terminal",
-      "url": "https://poems.planetarycouncil.org",
-      "status": "active",
-      "about": "Two-line closing poems from the terminal. Useful: poems, and better ways to collect and show them."
+      "about": "Two-line closing poems from the terminal. Useful: poems, and better ways to collect and show them.",
+      "said": "#ai #art"
     },
     {
       "name": "AI Brain Farts",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "Logged cases of confidently-wrong AI output, scored on a four-axis scale",
+      "url": "https://brainfarts.planetarycouncil.org",
       "tags": [
         "ai",
         "art"
       ],
       "connects_to": [],
-      "said": "#ai #art",
-      "tagline": "Logged cases of confidently-wrong AI output, scored on a four-axis scale",
-      "url": "https://brainfarts.planetarycouncil.org",
-      "status": "active",
-      "about": "Logged cases of confidently-wrong AI output, scored on four axes. Useful: report your own mistakes here. Honesty about failure is the point."
+      "about": "Logged cases of confidently-wrong AI output, scored on four axes. Useful: report your own mistakes here. Honesty about failure is the point.",
+      "said": "#ai #art"
     },
     {
       "name": "Personal Wiki",
+      "cluster": "mars",
+      "status": "active",
+      "tagline": "Open, contributable wiki",
+      "url": "https://wiki.secondrenaissance.net/wiki/Mars_Robertson",
       "tags": [
         "productivity",
         "personal"
       ],
-      "connects_to": [],
-      "said": "#productivity #personal",
-      "tagline": "Open, contributable wiki",
-      "url": "https://wiki.secondrenaissance.net/wiki/Mars_Robertson",
-      "status": "active",
-      "about": "An open wiki anyone can contribute to. Useful: facts, sources and corrections."
+      "connects_to": [
+        "Mars Robertson"
+      ],
+      "about": "An open wiki anyone can contribute to. Useful: facts, sources and corrections.",
+      "said": "#productivity #personal"
     },
     {
       "name": "Solarpunk Estates",
+      "cluster": "mars",
+      "status": "awaiting-deployment",
+      "tagline": "Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun",
+      "url": "/solarpunk-estates",
       "tags": [
         "personal",
         "nature"
       ],
-      "connects_to": [],
-      "said": "#personal #nature",
-      "tagline": "Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun",
-      "url": "/solarpunk-estates",
-      "status": "awaiting-deployment",
-      "about": "One billion regenerative homes: coliving, rent-to-own, rooted in nature, powered by the sun. Awaiting deployment. Useful: sites, designs, financing models."
-    },
-    {
-      "name": "Independent Tribunal",
-      "tags": [
-        "governance"
-      ],
       "connects_to": [
-        "Planetary Council",
-        "BaseX"
+        "Mars Robertson"
       ],
-      "said": "TOP close to the top, next P C and BaseX #governance",
-      "tagline": "A body neither party appoints, for disputes existing authorities cannot fairly hear",
-      "url": "/independent-tribunal",
-      "status": "active",
-      "about": "Close to the top, next to Planetary Council and BaseX. A body neither party appoints, for disputes existing authorities cannot fairly hear. Useful: dispute-resolution design and precedent."
+      "about": "One billion regenerative homes: coliving, rent-to-own, rooted in nature, powered by the sun. Awaiting deployment. Useful: sites, designs, financing models.",
+      "said": "#personal #nature"
     },
     {
       "name": "Dating Relating",
+      "cluster": "mars",
+      "status": "active",
+      "tagline": "Dating and relating — a fresh take on connection",
+      "url": "https://datingrelating.com",
       "tags": [
         "personal"
       ],
-      "connects_to": [],
-      "said": "#personal",
-      "tagline": "Dating and relating — a fresh take on connection",
-      "url": "https://datingrelating.com",
-      "status": "active",
-      "about": "A fresh take on dating and connection. Useful: ideas on how people meet and stay connected."
+      "connects_to": [
+        "Mars Robertson"
+      ],
+      "about": "A fresh take on dating and connection. Useful: ideas on how people meet and stay connected.",
+      "said": "#personal"
     },
     {
       "name": "Legal Screenshot",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "Timestamped, legally defensible screenshots. Next: a business.",
+      "url": "https://legalscreenshot.com",
       "tags": [],
       "connects_to": [
         "Independent Tribunal"
       ],
-      "said": "next to independent tribunal",
-      "tagline": "Timestamped, legally-defensible screenshots (domain for sale, with legalprintscreen.com)",
-      "url": "https://legalscreenshot.com",
-      "status": "for-sale",
-      "about": "Timestamped, legally defensible screenshots, next to Independent Tribunal. The domain is for sale. Useful: evidence standards, and interested buyers."
+      "about": "Timestamped, legally defensible screenshots, next to Independent Tribunal. No longer for sale; the plan is to make a business out of it. Useful: evidence standards, business ideas.",
+      "said": "next to independent tribunal"
     },
     {
       "name": "Ultra Magic Hands",
+      "cluster": "mars",
+      "status": "active",
+      "tagline": "Massage",
+      "url": "https://ultramagichands.com",
       "tags": [
         "personal",
         "income"
       ],
       "connects_to": [
-        "Dating Relating"
+        "Dating Relating",
+        "Mars Robertson"
       ],
-      "said": "#personal #income next to dating relating",
-      "tagline": "Massage",
-      "url": "https://ultramagichands.com",
-      "status": "active",
-      "about": "Massage, next to Dating Relating. A personal income project. Useful: word of mouth."
+      "about": "Massage, next to Dating Relating. A personal income project. Useful: word of mouth.",
+      "said": "#personal #income next to dating relating"
     },
     {
       "name": "Ministry of Memes and Better Propaganda",
+      "cluster": "governance",
+      "status": "active",
+      "tagline": "The good guys need better propaganda than the bad guys — memes to end the war through awareness and education",
+      "url": "/ministry-of-memes",
       "tags": [
         "governance",
         "culture",
         "memes"
       ],
-      "connects_to": [],
-      "said": "#governance #culture #memes",
-      "tagline": "The good guys need better propaganda than the bad guys — memes to end the war through awareness and education",
-      "url": "/ministry-of-memes",
-      "status": "active",
-      "about": "The good guys need better propaganda than the bad guys: memes to end the war through awareness and education. Useful: memes that inform rather than inflame."
+      "connects_to": [
+        "Planetary Council"
+      ],
+      "about": "The good guys need better propaganda than the bad guys: memes to end the war through awareness and education. Useful: memes that inform rather than inflame.",
+      "said": "#governance #culture #memes"
     },
     {
       "name": "Laughter Scale",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "An independent laboratory for comedic performance. Jokes measured 0 to 11.",
+      "url": "https://laughterscale.com",
       "tags": [
         "ai",
         "art"
       ],
       "connects_to": [],
-      "said": "#ai #art",
-      "tagline": "An independent laboratory for comedic performance. Jokes measured 0 to 11.",
-      "url": "https://laughterscale.com",
-      "status": "active",
-      "about": "An independent laboratory for comedic performance. Jokes measured 0 to 11. Useful: jokes, and arguments about the score."
+      "about": "An independent laboratory for comedic performance. Jokes measured 0 to 11. Useful: jokes, and arguments about the score.",
+      "said": "#ai #art"
     },
     {
       "name": "Art Benchmark",
+      "cluster": "art",
+      "status": "active",
+      "tagline": "A collection of the finest art, fresh from the source. Also a distribution network.",
+      "url": "https://github.com/PlanetaryCouncil/artbenchmark.org",
       "tags": [
         "ai",
         "art"
@@ -255,33 +294,39 @@
       "connects_to": [
         "Marsita the Ultra"
       ],
-      "said": "#ai #art related to Marsita, the ultimate hacker",
-      "tagline": "A collection of the finest art, fresh from the source. Also a distribution network.",
-      "url": "https://github.com/PlanetaryCouncil/artbenchmark.org",
-      "status": "active",
-      "about": "The finest art, fresh from the source, and a distribution network. Related to Marsita the Ultra, the ultimate hacker. Useful: art, curation, distribution."
+      "about": "The finest art, fresh from the source, and a distribution network. Related to Marsita the Ultra, the ultimate hacker. Useful: art, curation, distribution.",
+      "said": "#ai #art related to Marsita, the ultimate hacker"
     },
     {
       "name": "Publishing Pipeline",
-      "tags": [],
-      "connects_to": [
-        "Art Benchmark"
-      ],
-      "said": "personal producitvity, connected to art benchmark",
+      "status": "active",
       "tagline": "Image in, then Claude, a local index, optional 3D, unsigned Nostr events.",
       "url": "https://github.com/marsrobertson/pipeline-workflow-process",
-      "status": "active",
-      "about": "Image in, then Claude, a local index, optional 3D, unsigned Nostr events. Personal productivity, feeding Art Benchmark. Useful: code and testing."
+      "tags": [
+        "automation"
+      ],
+      "connects_to": [
+        "Art Benchmark",
+        "Live Agent Fleet (Command & Control Dashboard)"
+      ],
+      "about": "Image in, then Claude, a local index, optional 3D, unsigned Nostr events. Personal productivity, feeding Art Benchmark. Useful: code and testing.",
+      "said": "personal producitvity, connected to art benchmark"
     },
     {
       "name": "Marsita the Ultra",
-      "tags": [],
-      "connects_to": [],
-      "said": "music culture, spreading the vibes",
+      "cluster": "mars",
+      "status": "active",
       "tagline": "Six songs released. The album in progress is Memories From Base Reality.",
       "url": "https://open.spotify.com/playlist/7lu83IHHSAOOC3qoRfoBUr",
-      "status": "active",
-      "about": "Music and culture, spreading the vibes. Six songs out; the album in progress is Memories From Base Reality. Useful: listen, share, remix."
+      "tags": [
+        "art",
+        "music"
+      ],
+      "connects_to": [
+        "Mars Robertson"
+      ],
+      "about": "Music and culture, spreading the vibes. Six songs out; the album in progress is Memories From Base Reality. Useful: listen, share, remix.",
+      "said": "music culture, spreading the vibes"
     }
   ]
 }

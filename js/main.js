@@ -21,7 +21,7 @@ function buildModel({ hq, projects }) {
     ...p,
     id: slug(p.name),
     rank: i,
-    href: p.url && p.url.startsWith('/') ? RELATIVE_BASE + p.url : p.url,
+    href: !p.url ? null : p.url.startsWith('/') ? RELATIVE_BASE + p.url : p.url,
     isCore: p.name === hq,
     tags: [...new Set((p.tags || []).map((t) => t.toLowerCase()))],
   }));
@@ -39,8 +39,20 @@ function buildModel({ hq, projects }) {
     links.push({ a: A, b: B, kind });
   };
   for (const n of nodes) for (const t of n.connects_to || []) add(n, byName.get(t), 'stated');
-  // Projects with no stated connection still belong to the whole: tie them to the core.
-  for (const n of nodes) if (!n.isCore && !links.some((l) => l.a === n || l.b === n)) add(core, n, 'root');
+  // A project with no stated connection is tied to the hub of its cluster
+  // (the member with the most connections), or to the core if it has no cluster.
+  const degree = (n) => links.filter((l) => l.a === n || l.b === n).length;
+  const hubOf = new Map();
+  for (const n of nodes) {
+    if (!n.cluster) continue;
+    const h = hubOf.get(n.cluster);
+    if (!h || degree(n) > degree(h)) hubOf.set(n.cluster, n);
+  }
+  for (const n of nodes) {
+    if (n.isCore || degree(n)) continue;
+    const hub = (n.cluster && hubOf.get(n.cluster)) || core;
+    add(hub === n ? core : hub, n, 'root');
+  }
 
   return { core, nodes, links };
 }
@@ -69,7 +81,8 @@ function renderList(model) {
     card.querySelector('h2 span').textContent = n.name;
     card.querySelector('.st-dot').title = statusLabel(n.status);
     card.querySelector('.m-tagline').textContent = n.tagline || '';
-    card.querySelector('.m-visit').href = n.href;
+    if (n.href) card.querySelector('.m-visit').href = n.href;
+    else card.querySelector('.m-visit').remove();
     cards.append(card);
   }
   const chips = new Map([...nav.children].map((a) => [a.dataset.id, a]));

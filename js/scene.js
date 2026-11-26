@@ -1,23 +1,19 @@
-// The 3D map. Layout is derived only from the source data:
-//   - stated connections (connects_to) are strong springs and visible lines,
-//   - shared tags are weak invisible springs, so related projects drift together,
-//   - everything repels a little, and the core (Planetary Council) sits at the centre.
-// Tag groups are drawn as faint overlapping shells: holons that share members.
+// The 3D map, built for speed: no post-processing, no idle animation, and a
+// frame is drawn only when something changed (orbit, zoom, hover, camera move).
+//
+// Layout comes from the source data alone:
+//   - connects_to = strong springs and visible lines,
+//   - same cluster = medium springs, drawn as one faint shell per cluster,
+//   - shared tags = weak springs,
+//   - everything repels a little; the core (hq) sits at the centre.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { neighbours, shortName, statusLabel } from './main.js';
 
-const STATUS_COLOR = { 'active': 0x39ff88, 'awaiting-deployment': 0xffc857, 'done': 0x5ce1ff, 'for-sale': 0xff5c8a };
+const STATUS_COLOR = { 'active': 0x39ff88, 'quiet': 0x2f9e5f, 'awaiting-deployment': 0xffc857, 'done': 0x5ce1ff, 'for-sale': 0xff5c8a };
 const NEON = 0x39ff88;
 const LOVE = 0xff3b3b;
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-/* ---------- layout ---------- */
 function seeded(str) {
   let h = 1779033703 ^ str.length;
   for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
@@ -32,10 +28,12 @@ function layout(model) {
     n.v = new THREE.Vector3();
   }
   const springs = [];
-  for (const l of model.links) springs.push({ a: l.a, b: l.b, rest: l.kind === 'stated' ? 8 : 13, k: l.kind === 'stated' ? 0.06 : 0.025 });
+  for (const l of model.links) springs.push({ a: l.a, b: l.b, rest: l.kind === 'stated' ? 8 : 9, k: l.kind === 'stated' ? 0.06 : 0.04 });
   for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
     const shared = N[i].tags.filter((t) => N[j].tags.includes(t)).length;
-    if (shared) springs.push({ a: N[i], b: N[j], rest: 10, k: 0.012 * shared });
+    const same = N[i].cluster && N[i].cluster === N[j].cluster;
+    if (same) springs.push({ a: N[i], b: N[j], rest: 9, k: 0.03 });
+    else if (shared) springs.push({ a: N[i], b: N[j], rest: 12, k: 0.006 * shared });
   }
   const d = new THREE.Vector3();
   for (let it = 0; it < 600; it++) {
@@ -53,8 +51,8 @@ function layout(model) {
       s.a.v.add(d); s.b.v.sub(d);
     }
     for (const n of N) {
-      n.v.addScaledVector(n.p, -0.009);       // gravity to the centre keeps it one body
-      n.v.y -= n.p.y * 0.006;                 // a little flatter than a ball
+      n.v.addScaledVector(n.p, -0.009);
+      n.v.y -= n.p.y * 0.006;
       if (n.isCore) { n.p.set(0, 0, 0); n.v.set(0, 0, 0); continue; }
       n.v.multiplyScalar(0.82);
       n.p.addScaledVector(n.v, 0.6 + cool);
@@ -65,15 +63,15 @@ function layout(model) {
 
 function glowTexture() {
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 64;
   const g = c.getContext('2d');
-  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   grd.addColorStop(0, 'rgba(255,255,255,1)');
-  grd.addColorStop(0.18, 'rgba(255,255,255,.55)');
-  grd.addColorStop(0.5, 'rgba(255,255,255,.12)');
+  grd.addColorStop(0.2, 'rgba(255,255,255,.5)');
+  grd.addColorStop(0.55, 'rgba(255,255,255,.1)');
   grd.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grd;
-  g.fillRect(0, 0, 128, 128);
+  g.fillRect(0, 0, 64, 64);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -88,7 +86,7 @@ function heartGeometry() {
   s.bezierCurveTo(60, 77, 80, 55, 80, 35);
   s.bezierCurveTo(80, 35, 80, 0, 50, 0);
   s.bezierCurveTo(35, 0, 25, 25, 25, 25);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: 18, bevelEnabled: true, bevelSize: 6, bevelThickness: 6, bevelSegments: 4, curveSegments: 24 });
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 18, bevelEnabled: true, bevelSize: 6, bevelThickness: 6, bevelSegments: 2, curveSegments: 12 });
   geo.center();
   geo.rotateZ(Math.PI);
   geo.scale(0.034, 0.034, 0.034);
@@ -101,16 +99,14 @@ export function startScene(model) {
   const labelsEl = document.getElementById('labels');
   layout(model);
 
-  // Frame the whole network.
   const radii = model.nodes.map((n) => n.pos.length()).sort((a, b) => a - b);
   const R = radii[Math.floor(radii.length * 0.85)] + 4;
-  const minY = Math.min(...model.nodes.map((n) => n.pos.y));
-  const FLOOR_Y = minY - 7;
-  const HOME = { pos: new THREE.Vector3(0, R * 0.5, R * 1.75), target: new THREE.Vector3(0, 0, 0) };
+  const FLOOR_Y = Math.min(...model.nodes.map((n) => n.pos.y)) - 7;
+  const centre = model.nodes.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(model.nodes.length);
+  const HOME = { pos: centre.clone().add(new THREE.Vector3(0, R * 0.5, R * 1.75)), target: centre };
 
-  /* ---------- renderer ---------- */
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   host.append(renderer.domElement);
 
@@ -118,25 +114,20 @@ export function startScene(model) {
   scene.background = new THREE.Color(0x020805);
   scene.fog = new THREE.FogExp2(0x020805, 0.005);
   const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1500);
-  camera.position.copy(HOME.pos).multiplyScalar(2.2);
+  camera.position.copy(HOME.pos);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
+  controls.dampingFactor = 0.12;
   controls.minDistance = 6;
   controls.maxDistance = R * 5;
   controls.maxPolarAngle = Math.PI * 0.85;
-  controls.autoRotateSpeed = 0.3;
 
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.75, 0.45, 0.32));
-  composer.addPass(new OutputPass());
   const glow = glowTexture();
 
-  /* ---------- environment ---------- */
+  /* ---------- environment (static) ---------- */
   {
-    const n = 1800, pos = new Float32Array(n * 3);
+    const n = 1200, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const r = 180 + Math.random() * 380, th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
       pos.set([r * Math.sin(ph) * Math.cos(th), r * Math.cos(ph) * 0.7 + 30, r * Math.sin(ph) * Math.sin(th)], i * 3);
@@ -145,97 +136,73 @@ export function startScene(model) {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x7dffb0, size: 0.9, transparent: true, opacity: 0.45, fog: false })));
   }
-  const floor = new THREE.PolarGridHelper(R * 1.6, 24, 12, 96, 0x1a6b3d, 0x0f3d24);
+  const floor = new THREE.PolarGridHelper(R * 1.6, 24, 10, 64, 0x1a6b3d, 0x0f3d24);
   floor.position.y = FLOOR_Y;
   floor.material.transparent = true;
-  floor.material.opacity = 0.18;
+  floor.material.opacity = 0.2;
   scene.add(floor);
-  const ripples = [];
-  for (let i = 0; i < 4; i++) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 128),
-      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2;
-    m.position.y = FLOOR_Y + 0.05;
-    m.userData.phase = i / 4;
-    scene.add(m);
-    ripples.push(m);
-  }
   {
     const h = Math.abs(FLOOR_Y) - 2.5;
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.6, h, 16, 1, true),
-      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.5, h, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.12, depthWrite: false }));
     beam.position.y = FLOOR_Y + h / 2;
     scene.add(beam);
   }
 
-  /* ---------- tag shells: overlapping holons ---------- */
+  /* ---------- cluster shells ---------- */
   const groups = [];
-  const tagMembers = new Map();
-  for (const n of model.nodes) for (const t of n.tags) tagMembers.set(t, [...(tagMembers.get(t) || []), n]);
-  // Tags that cover nearly the same projects (e.g. ai and art) become one shell.
-  const sets = [...tagMembers].filter(([, m]) => m.length >= 3).map(([tag, m]) => ({ tags: [tag], m: new Set(m) }));
-  for (let i = 0; i < sets.length; i++) for (let j = i + 1; j < sets.length; j++) {
-    const A = sets[i].m, B = sets[j].m;
-    const inter = [...A].filter((x) => B.has(x)).length;
-    if (inter / new Set([...A, ...B]).size >= 0.6) {
-      sets[i].tags.push(...sets[j].tags);
-      B.forEach((x) => A.add(x));
-      sets.splice(j--, 1);
-    }
-  }
-  for (const { tags, m } of sets) {
-    const tag = tags.join(' · ');
-    const members = [...m];
+  const byCluster = new Map();
+  for (const n of model.nodes) if (n.cluster) byCluster.set(n.cluster, [...(byCluster.get(n.cluster) || []), n]);
+  for (const [name, members] of byCluster) {
+    if (members.length < 2) continue;
     const c = members.reduce((acc, n) => acc.add(n.pos), new THREE.Vector3()).divideScalar(members.length);
-    const r = Math.max(...members.map((n) => n.pos.distanceTo(c))) + 3;
+    const r = Math.max(...members.map((n) => n.pos.distanceTo(c))) + 3.5;
     const shell = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(r, 1)),
-      new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false }));
+      new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.07, depthWrite: false }));
     shell.position.copy(c);
-    shell.userData.spin = (Math.random() - 0.5) * 0.04;
     scene.add(shell);
     const el = document.createElement('div');
     el.className = 'label group show';
-    el.textContent = tag;
+    el.textContent = name;
     labelsEl.append(el);
-    groups.push({ tag, members, shell, el, top: c.clone().add(new THREE.Vector3(0, r, 0)), base: 0.05, vis: 0.05 });
+    groups.push({ members, shell, el, top: c.clone().add(new THREE.Vector3(0, r, 0)) });
   }
 
   /* ---------- nodes ---------- */
   const pickables = [];
   for (const n of model.nodes) {
     const color = new THREE.Color(n.isCore ? NEON : STATUS_COLOR[n.status] || NEON);
-    const size = n.isCore ? 4.4 : Math.max(1.6, 2.7 - n.rank * 0.05);
+    const size = n.isCore ? 4.4 : Math.max(1.6, 2.8 - n.rank * 0.05);
     n.size = size;
     const g = new THREE.Group();
     g.position.copy(n.pos);
+    g.rotation.set(0.15, (n.rank * 0.7) % Math.PI, 0);
     const box = new THREE.BoxGeometry(size, size, size);
-    const face = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const face = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, depthWrite: false }));
     face.userData.node = n;
     pickables.push(face);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
-    const inner = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 0.38, size * 0.38, size * 0.38)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }));
-    inner.rotation.set(0.6, 0.8, 0);
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }));
-    halo.scale.setScalar(size * 2.1);
-    g.add(face, edges, inner, halo);
-    const mats = [{ m: face.material, base: 0.05 }, { m: edges.material, base: 0.9 }, { m: inner.material, base: 0.55 }, { m: halo.material, base: 0.2 }];
-
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1 }));
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
+    halo.scale.setScalar(size * 2);
+    g.add(face, edges, halo);
+    const mats = [{ m: face.material, base: 0.08 }, { m: edges.material, base: 1 }, { m: halo.material, base: 0.25 }];
     if (n.isCore) {
-      // Human and AI at once: a red heart inside the machine cube.
-      inner.visible = false;
-      halo.material.opacity = 0.05; mats[3].base = 0.05;
+      halo.material.opacity = mats[2].base = 0.05;
       const heart = new THREE.Mesh(heartGeometry(), new THREE.MeshBasicMaterial({ color: LOVE }));
-      const heartGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: LOVE, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
-      heartGlow.scale.setScalar(6);
+      heart.rotation.y = -g.rotation.y;
+      const heartGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: LOVE, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+      heartGlow.scale.setScalar(7);
       const twin = new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.45 }));
       twin.rotation.set(Math.PI / 4, Math.PI / 4, 0);
-      const meta = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(size * 1.05, 0)), new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.3 }));
-      g.add(heart, heartGlow, twin, meta);
-      Object.assign(n, { heart, heartGlow, twin, meta });
-      mats.push({ m: twin.material, base: 0.45 }, { m: meta.material, base: 0.3 });
+      g.add(heart, heartGlow, twin);
+      mats.push({ m: twin.material, base: 0.45 });
+    } else {
+      const inner = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 0.38, size * 0.38, size * 0.38)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
+      inner.rotation.set(0.6, 0.8, 0);
+      g.add(inner);
+      mats.push({ m: inner.material, base: 0.6 });
     }
-    Object.assign(n, { obj: g, inner, mats, vis: 1, visTarget: 1, scaleTarget: 1, spin: (Math.random() - 0.5) * 0.25 });
-    g.rotation.y = Math.random() * Math.PI;
+    Object.assign(n, { obj: g, mats });
     scene.add(g);
   }
 
@@ -245,27 +212,15 @@ export function startScene(model) {
   for (const l of model.links) {
     const A = l.a.pos, B = l.b.pos;
     const ctrl = A.clone().lerp(B, 0.5).add(new THREE.Vector3(0, A.distanceTo(B) * 0.2, 0));
-    const curve = new THREE.QuadraticBezierCurve3(A.clone(), ctrl, B.clone());
-    const base = l.kind === 'stated' ? 0.6 : 0.16;
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)),
+    const pts = new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24);
+    const base = l.kind === 'stated' ? 0.6 : 0.18;
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: l.kind === 'stated' ? NEON : 0x2bd36f, transparent: true, opacity: base }));
     scene.add(line);
-    const e = { ...l, curve, line, base, vis: base, visTarget: base };
+    const e = { ...l, line, base };
     links.push(e);
     incident.get(l.a).push(e);
     incident.get(l.b).push(e);
-  }
-
-  /* ---------- agents wandering the network ---------- */
-  const agents = [];
-  const agentMat = new THREE.SpriteMaterial({ map: glow, color: 0xeafff2, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-  for (const e of links) {
-    for (let i = 0; i < (e.kind === 'stated' ? 2 : 1); i++) {
-      const s = new THREE.Sprite(agentMat);
-      s.scale.setScalar(0.8);
-      scene.add(s);
-      agents.push({ s, edge: e, dir: Math.random() < 0.5 ? 1 : -1, t: Math.random(), speed: 0.08 + Math.random() * 0.1 });
-    }
   }
 
   /* ---------- labels ---------- */
@@ -281,6 +236,11 @@ export function startScene(model) {
     labelFor.set(n, el);
   }
 
+  /* ---------- render on demand ---------- */
+  let dirty = true;
+  const invalidate = () => { dirty = true; };
+  controls.addEventListener('change', invalidate);
+
   /* ---------- focus ---------- */
   let hovered = null, selected = null;
   function refreshFocus() {
@@ -288,12 +248,18 @@ export function startScene(model) {
     const lit = new Set(focus ? [focus, ...incident.get(focus).flatMap((e) => [e.a, e.b])] : []);
     for (const n of model.nodes) {
       n.lit = lit.has(n);
-      n.visTarget = !focus || n.lit ? 1 : 0.15;
-      n.scaleTarget = n === focus ? 1.18 : 1;
+      const v = !focus || n.lit ? 1 : 0.15;
+      for (const { m, base } of n.mats) m.opacity = base * v;
+      n.obj.scale.setScalar(n === focus ? 1.15 : 1);
       labelFor.get(n).classList.toggle('hot', n === focus);
     }
-    for (const e of links) e.visTarget = !focus ? e.base : (e.a === focus || e.b === focus) ? 1 : e.base * 0.15;
-    for (const g of groups) g.visTarget = focus && g.members.includes(focus) ? 0.14 : focus ? 0.02 : g.base;
+    for (const e of links) e.line.material.opacity = !focus ? e.base : (e.a === focus || e.b === focus) ? 1 : e.base * 0.15;
+    for (const g of groups) {
+      const mine = focus && g.members.includes(focus);
+      g.shell.material.opacity = mine ? 0.16 : focus ? 0.03 : 0.07;
+      g.el.classList.toggle('show', !focus || mine);
+    }
+    invalidate();
   }
   function setHover(n) {
     if (hovered === n) return;
@@ -302,18 +268,17 @@ export function startScene(model) {
     refreshFocus();
   }
 
-  /* ---------- camera ---------- */
+  /* ---------- camera: one short, simple move ---------- */
   let flight = null;
-  let lastInteraction = performance.now();
-  const flyTo = (pos, target, dur = 1.4) => {
-    flight = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), dur: reducedMotion ? 0.01 : dur };
+  const flyTo = (pos, target) => {
+    flight = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), dur: 450 };
+    invalidate();
   };
   function flyToNode(n) {
     const dir = camera.position.clone().sub(controls.target).normalize();
     dir.y = THREE.MathUtils.clamp(dir.y, 0.12, 0.55);
     dir.normalize();
     const dist = n.isCore ? 30 : 18 + n.size * 2.5;
-    // Nudge the focus point right so the panel doesn't cover the cube.
     const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
     const target = n.pos.clone().add(right.multiplyScalar(dist * 0.2));
     flyTo(target.clone().add(dir.multiplyScalar(dist)), target);
@@ -324,9 +289,7 @@ export function startScene(model) {
   function select(n) {
     selected = n;
     panel.hidden = false;
-    panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
-    const kicker = panel.querySelector('.panel-kicker');
-    kicker.className = `panel-kicker st-${n.status}`;
+    panel.querySelector('.panel-kicker').className = `panel-kicker st-${n.status}`;
     panel.querySelector('.panel-status').textContent = n.isCore ? 'global governance' : statusLabel(n.status);
     panel.querySelector('.panel-name').textContent = n.name;
     panel.querySelector('.panel-tagline').textContent = n.tagline || '';
@@ -346,7 +309,7 @@ export function startScene(model) {
     selected = null;
     panel.hidden = true;
     history.replaceState(null, '', location.pathname + location.search);
-    if (home) flyTo(HOME.pos, HOME.target, 1.6);
+    if (home) flyTo(HOME.pos, HOME.target);
     refreshFocus();
   }
   const step = (d) => {
@@ -361,10 +324,10 @@ export function startScene(model) {
     else if (e.key === 'Escape') deselect(true);
   });
 
-  /* ---------- picking ---------- */
+  /* ---------- picking (throttled to one raycast per frame) ---------- */
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  let down = null;
+  let down = null, pendingMove = null;
   const pick = (ev) => {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
@@ -373,18 +336,16 @@ export function startScene(model) {
     return hit ? hit.object.userData.node : null;
   };
   const el = renderer.domElement;
-  el.addEventListener('pointermove', (ev) => { if (!down) setHover(pick(ev)); });
-  el.addEventListener('pointerdown', (ev) => { down = { x: ev.clientX, y: ev.clientY }; lastInteraction = performance.now(); flight = null; });
+  el.addEventListener('pointermove', (ev) => { if (!down) pendingMove = ev; });
+  el.addEventListener('pointerdown', (ev) => { down = { x: ev.clientX, y: ev.clientY }; flight = null; });
   el.addEventListener('pointerup', (ev) => {
     const click = down && Math.hypot(ev.clientX - down.x, ev.clientY - down.y) < 5;
     down = null;
-    lastInteraction = performance.now();
     if (!click) return;
     const n = pick(ev);
     if (n) select(n); else if (selected) deselect(false);
   });
-  el.addEventListener('pointerleave', () => setHover(null));
-  el.addEventListener('wheel', () => { lastInteraction = performance.now(); flight = null; }, { passive: true });
+  el.addEventListener('pointerleave', () => { pendingMove = null; setHover(null); });
 
   let W = innerWidth, H = innerHeight;
   addEventListener('resize', () => {
@@ -392,80 +353,35 @@ export function startScene(model) {
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
     renderer.setSize(W, H);
-    composer.setSize(W, H);
+    invalidate();
   });
 
   /* ---------- loop ---------- */
   const tmp = new THREE.Vector3();
   const up = new THREE.Vector3();
-  const clock = new THREE.Clock();
   function place(label, world) {
     tmp.copy(world).project(camera);
     if (tmp.z > 1 || tmp.z < -1) { label.style.visibility = 'hidden'; return false; }
     label.style.visibility = '';
-    label.style.transform = `translate3d(${((tmp.x * 0.5 + 0.5) * W).toFixed(1)}px, ${((-tmp.y * 0.5 + 0.5) * H - 4).toFixed(1)}px, 0) translate(-50%, -100%)`;
+    label.style.transform = `translate3d(${((tmp.x * 0.5 + 0.5) * W) | 0}px, ${((-tmp.y * 0.5 + 0.5) * H - 4) | 0}px, 0) translate(-50%, -100%)`;
     return true;
   }
 
   function frame() {
     requestAnimationFrame(frame);
-    if (document.hidden) return;
-    const dt = Math.min(clock.getDelta(), 0.05);
-    const t = clock.elapsedTime;
-    const motion = reducedMotion ? 0.15 : 1;
-    const k = Math.min(1, dt * 6);
-
+    if (pendingMove) { setHover(pick(pendingMove)); pendingMove = null; }
     if (flight) {
-      const p = Math.min(1, (performance.now() - flight.start) / (flight.dur * 1000));
-      camera.position.lerpVectors(flight.p0, flight.p1, ease(p));
-      controls.target.lerpVectors(flight.t0, flight.t1, ease(p));
+      const p = Math.min(1, (performance.now() - flight.start) / flight.dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      camera.position.lerpVectors(flight.p0, flight.p1, e);
+      controls.target.lerpVectors(flight.t0, flight.t1, e);
       if (p >= 1) flight = null;
+      dirty = true;
     }
-    controls.autoRotate = !reducedMotion && !selected && !hovered && !flight && performance.now() - lastInteraction > 7000;
-    controls.update();
+    controls.update();               // fires 'change' (and so dirty) only while moving
+    if (!dirty) return;
+    dirty = false;
 
-    for (const n of model.nodes) {
-      n.vis += (n.visTarget - n.vis) * k;
-      for (const { m, base } of n.mats) m.opacity = base * n.vis;
-      n.obj.scale.setScalar(n.obj.scale.x + (n.scaleTarget - n.obj.scale.x) * Math.min(1, dt * 8));
-      n.obj.rotation.y += n.spin * dt * motion;
-      n.obj.position.y = n.pos.y + Math.sin(t * 0.6 + n.rank) * 0.25 * motion;
-      n.inner.rotation.x += dt * 0.5 * motion;
-      n.inner.rotation.y -= dt * 0.7 * motion;
-      if (n.isCore) {
-        const beat = 1 + Math.pow(Math.max(0, Math.sin(t * 2.4)), 12) * 0.22;
-        n.heart.scale.setScalar(beat);
-        n.heartGlow.scale.setScalar(6 * beat);
-        n.heart.rotation.y = Math.sin(t * 0.5) * 0.6 - n.obj.rotation.y;
-        n.twin.rotation.x += dt * 0.2 * motion;
-        n.meta.rotation.y -= dt * 0.12 * motion;
-      }
-    }
-    for (const e of links) { e.vis += (e.visTarget - e.vis) * k; e.line.material.opacity = e.vis; }
-    for (const g of groups) {
-      g.vis += ((g.visTarget ?? g.base) - g.vis) * k;
-      g.shell.material.opacity = g.vis;
-      g.shell.rotation.y += g.shell.userData.spin * dt * motion;
-    }
-    for (const a of agents) {
-      a.t += a.dir * a.speed * dt * motion;
-      if (a.t > 1 || a.t < 0) {
-        const at = a.t > 1 ? a.edge.b : a.edge.a;
-        const opts = incident.get(at);
-        a.edge = opts[(Math.random() * opts.length) | 0];
-        a.dir = a.edge.a === at ? 1 : -1;
-        a.t = a.dir === 1 ? 0 : 1;
-      }
-      a.edge.curve.getPoint(a.t, a.s.position);
-      a.s.scale.setScalar(0.8 * Math.min(1, Math.max(a.edge.vis / a.edge.base, 0.25)));
-    }
-    for (const r of ripples) {
-      const p = (t * 0.12 * motion + r.userData.phase) % 1;
-      r.scale.setScalar(3 + p * R * 1.5);
-      r.material.opacity = (1 - p) * (1 - p) * 0.2;
-    }
-
-    // Names stay hidden until they matter: the core always, otherwise focus or proximity.
     const focus = hovered || selected;
     for (const n of model.nodes) {
       const label = labelFor.get(n);
@@ -475,16 +391,12 @@ export function startScene(model) {
       label.classList.toggle('show', n.isCore || n.lit || (!focus && dist < 24));
       label.style.zIndex = String(1000 - Math.round(dist));
     }
-    for (const g of groups) {
-      place(g.el, g.top);
-      g.el.classList.toggle('show', !focus || g.members.includes(focus));
-    }
-    composer.render();
+    for (const g of groups) place(g.el, g.top);
+    renderer.render(scene, camera);
   }
 
-  flyTo(HOME.pos, HOME.target, reducedMotion ? 0.01 : 2.6);
   refreshFocus();
   requestAnimationFrame(frame);
   const fromHash = model.nodes.find((n) => `#${n.id}` === location.hash);
-  if (fromHash) setTimeout(() => select(fromHash), reducedMotion ? 0 : 2300);
+  if (fromHash) select(fromHash);
 }
