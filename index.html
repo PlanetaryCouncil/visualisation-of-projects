@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/style.css?v=11">
   <script type="importmap">
   {
     "imports": {
@@ -47,15 +47,15 @@
     <section id="editor" class="editor" hidden>
       <div class="ed-bar">
         <button type="button" data-tool="move" title="Drag a project to move it. Scroll over it to resize.">move · size</button>
-        <button type="button" data-tool="parent" title="Drag from the parent to the child (single line). Again to remove.">parent → child</button>
-        <button type="button" data-tool="sibling" title="Drag from one project to another (double line). Again to remove.">sibling</button>
+        <button type="button" data-tool="parent" title="Drag from the parent to the child (single line). Click a line + Backspace to remove.">parent → child</button>
+        <button type="button" data-tool="sibling" title="Drag from one project to another (double line). Click a line + Backspace to remove.">sibling</button>
         <button type="button" data-tool="shape" title="Click a project: cube or pyramid (standalone, self-sufficient).">cube / pyramid</button>
         <span></span>
         <button class="ed-copy" type="button">copy</button>
         <button class="ed-discard" type="button">discard</button>
         <button class="ed-close" type="button" aria-label="Hide editor (E)">×</button>
       </div>
-      <p class="ed-help">Drag projects · scroll over one to resize · drag a line again to remove it · pyramid = standalone · Alt works without the editor · copy and paste to Claude</p>
+      <p class="ed-help">Drag projects · scroll over one to resize · click a line + Backspace removes it · pyramid = standalone · Alt works without the editor · copy and paste to Claude</p>
       <textarea spellcheck="false" readonly></textarea>
     </section>
   </div>
@@ -72,6 +72,6 @@
   </div>
 
   <noscript><p style="color:#7f7;padding:2rem;font-family:monospace">This map needs JavaScript.</p></noscript>
-  <script type="module" src="js/main.js?v=10"></script>
+  <script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>

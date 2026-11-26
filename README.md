@@ -28,7 +28,7 @@ screens get the 3D map.
 - **Alt + drag** a project (Option on a Mac): move it in the plane facing you; orbit to move it in depth.
 - **Alt + scroll** over a project: bigger / smaller (the border thickens with it).
 - **E** opens the editor. There, without Alt: drag to move, scroll to resize, or pick a line tool —
-  **parent → child** (drag from parent to child, single line), **sibling** (double line), or **cube / pyramid** (click a project to mark it standalone). Drag the same line again to remove it.
+  **parent → child** (drag from parent to child, single line), **sibling** (double line), or **cube / pyramid** (click a project to mark it standalone). To remove a line, click it (it turns white) and press Backspace.
 
 Changes stay in your browser until **discard**. To make them the default for everyone, **copy** the box
 and paste it to Claude (or apply it yourself: see the end of [SCHEMA.md](SCHEMA.md)).

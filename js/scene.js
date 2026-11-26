@@ -15,7 +15,7 @@
 //     parent  -> drag from the parent to the child (single line)
 //     sibling -> drag from one project to the other (double line)
 //     shape   -> click a project: cube <-> pyramid (standalone)
-//   Dragging the same line again removes it.
+//   Click a line to select it, then Backspace / Delete removes it.
 // The box holds the whole arrangement as JSON to paste back into the data.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -264,7 +264,9 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   /* ---------- lines: single = parent -> child, double = siblings ---------- */
   const LINE_PX = 1.3;
   const LINE_BASE = 0.7;
-  const GAP_PX = 1.4;                // half the gap between the two strands of a sibling line
+  const SIB_PX = 1.0;                // each strand of a sibling line is a little thinner
+const GAP_PX = 1.0;                // half the distance between the two strands' centres
+  let pickedLine = null;             // the line clicked last (white, thicker)
   const incident = new Map(model.nodes.map((n) => [n, []]));
   // The curve from A's centre to B's centre, trimmed so it starts and ends
   // where it crosses each project's surface.
@@ -293,6 +295,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   const tA = new THREE.Vector3(), vA = new THREE.Vector3(), nA = new THREE.Vector3();
   function redrawLink(l) {
     const pts = curvePts(l.a, l.b);
+    l.pts = pts;
     l.splashes[0].position.copy(pts[0]);
     l.splashes[1].position.copy(pts[pts.length - 1]);
     if (l.kind === 'parent') { l.lines[0].geometry.setPositions(flat(pts)); return; }
@@ -310,7 +313,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   function drawLink(l) {
     l.base = LINE_BASE;
     l.lines = Array.from({ length: l.kind === 'parent' ? 1 : 2 }, () =>
-      new Line2(new LineGeometry(), fat({ color: NEON, opacity: LINE_BASE, linewidth: LINE_PX })));
+      new Line2(new LineGeometry(), fat({ color: NEON, opacity: LINE_BASE, linewidth: l.kind === 'parent' ? LINE_PX : SIB_PX })));
     l.splashes = [0, 1].map(() => {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: splash, color: NEON, transparent: true, opacity: LINE_BASE, depthWrite: false, blending: THREE.AdditiveBlending }));
       sp.scale.setScalar(1.3);
@@ -322,6 +325,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     incident.get(l.b).push(l);
   }
   function eraseLink(l) {
+    if (l === pickedLine) pickedLine = null;
     for (const sp of l.splashes) { scene.remove(sp); sp.material.dispose(); }
     for (const ln of l.lines) {
       scene.remove(ln);
@@ -335,7 +339,23 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   const siblingLines = () => model.links.filter((l) => l.kind === 'sibling');
   model.links.forEach(drawLink);
 
-  /* ---------- labels: always on ---------- */
+  /* ---------- labels: always on, pinned to one corner of the body ---------- */
+  // Pyramids use their apex. Cubes use the top corner furthest right in the
+  // opening view, so the name runs away from the body; it stays the same
+  // corner as you orbit, so the name moves with its project.
+  const homeRight = new THREE.Vector3().crossVectors(HOME.target.clone().sub(HOME.pos), new THREE.Vector3(0, 1, 0)).normalize();
+  const cw = new THREE.Vector3();
+  function pickCorner(n) {
+    if (n.standalone) { n.corner = new THREE.Vector3(0, (n.size * PYR_H) / 2, 0); return; }
+    const h = n.size / 2;
+    n.obj.updateMatrixWorld();
+    let best = -Infinity;
+    for (const x of [-h, h]) for (const z of [-h, h]) {
+      const score = cw.set(x, h, z).applyMatrix4(n.obj.matrixWorld).dot(homeRight);
+      if (score > best) { best = score; n.corner = new THREE.Vector3(x, h, z); }
+    }
+  }
+  model.nodes.forEach(pickCorner);
   const labelFor = new Map();
   for (const n of model.nodes) {
     const el = document.createElement('div');
@@ -370,7 +390,9 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     }
     for (const l of model.links) {
       const o = !focus ? l.base : (l.a === focus || l.b === focus) ? 1 : l.base * 0.15;
-      for (const ln of [...l.lines, ...l.splashes]) ln.material.opacity = o;
+      const on = l === pickedLine;
+      for (const ln of [...l.lines, ...l.splashes]) ln.material.opacity = on ? 1 : o;
+      for (const ln of l.lines) ln.material.linewidth = (l.kind === 'parent' ? LINE_PX : SIB_PX) * (on ? 2 : 1);
     }
     invalidate();
   }
@@ -450,6 +472,34 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     return fromLabel || pick(ev);
   };
 
+  /* ---------- picking a line (click it, then Backspace removes it) ---------- */
+  const sA = new THREE.Vector2(), sB = new THREE.Vector2(), sP = new THREE.Vector2();
+  const toScreen = (v, out) => { tmp.copy(v).project(camera); return out.set((tmp.x * 0.5 + 0.5) * W, (-tmp.y * 0.5 + 0.5) * H); };
+  function lineUnder(ev, maxPx = 7) {
+    const r = renderer.domElement.getBoundingClientRect();
+    sP.set(ev.clientX - r.left, ev.clientY - r.top);
+    let best = null, bestD = maxPx;
+    for (const l of model.links) {
+      toScreen(l.pts[0], sA);
+      for (let i = 1; i < l.pts.length; i++) {
+        toScreen(l.pts[i], sB);
+        const ab = sB.clone().sub(sA), len2 = ab.lengthSq();
+        const t = len2 ? THREE.MathUtils.clamp(sP.clone().sub(sA).dot(ab) / len2, 0, 1) : 0;
+        const d = sA.clone().addScaledVector(ab, t).distanceTo(sP);
+        if (d < bestD) { bestD = d; best = l; }
+        sA.copy(sB);
+      }
+    }
+    return best;
+  }
+  function pickLine(l) {
+    if (pickedLine === l) return;
+    if (pickedLine) for (const ln of pickedLine.lines) ln.material.color.set(NEON);
+    pickedLine = l;
+    if (l) for (const ln of l.lines) ln.material.color.set(0xffffff);
+    refreshFocus();
+  }
+
   /* ---------- editing ---------- */
   const editor = document.getElementById('editor');
   const editorText = editor.querySelector('textarea');
@@ -478,6 +528,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     if (mode === 'shape') {
       n.standalone = !n.standalone;
       buildBody(n);
+      pickCorner(n);
       for (const l of incident.get(n)) redrawLink(l);
       justEdited = true;
       setTimeout(() => { justEdited = false; }, 0);
@@ -526,13 +577,11 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
 
   function toggleLine(A, B, kind) {
     const had = model.links.find((l) => (l.a === A && l.b === B) || (l.a === B && l.b === A));
-    const sameAgain = had && had.kind === kind && (kind === 'sibling' || had.a === A);
-    if (had) eraseLink(had);
-    if (!sameAgain) {
-      const l = { a: A, b: B, kind };     // parent line: a = parent, b = child
-      model.links.push(l);
-      drawLink(l);
-    }
+    if (had && had.kind === kind && (kind === 'sibling' || had.a === A)) return;   // already there
+    if (had) eraseLink(had);              // re-drawn as the other kind / direction
+    const l = { a: A, b: B, kind };       // parent line: a = parent, b = child
+    model.links.push(l);
+    drawLink(l);
   }
 
   let wheelTarget = null, wheelAt = 0;
@@ -605,7 +654,13 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     if (e.target.closest?.('textarea, input')) return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
-    else if (e.key === 'Escape') deselect(true);
+    else if ((e.key === 'Backspace' || e.key === 'Delete') && pickedLine) {
+      e.preventDefault();
+      eraseLink(pickedLine);
+      saveDraft();
+      refreshFocus();
+    }
+    else if (e.key === 'Escape') { if (pickedLine) pickLine(null); else deselect(true); }
     else if (e.key === 'e' || e.key === 'E') { if (editor.hidden) showEditor(); else editor.hidden = true; }
     else if (e.key === 'Alt') e.preventDefault();   // keep Firefox's menu bar from grabbing focus
   });
@@ -626,7 +681,10 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     down = null;
     if (!click) return;
     const n = pick(ev);
-    if (n) select(n); else if (selected) deselect(false);
+    if (n) { pickLine(null); select(n); return; }
+    const l = lineUnder(ev);
+    pickLine(l);
+    if (!l && selected) deselect(false);
   });
   el.addEventListener('pointerleave', () => { pendingMove = null; if (!drag) setHover(null); });
 
@@ -643,11 +701,12 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   /* ---------- loop ---------- */
   const tmp = new THREE.Vector3();
   const up = new THREE.Vector3();
+  // The label's lower-left starts just off the corner.
   function place(label, world) {
     tmp.copy(world).project(camera);
     if (tmp.z > 1 || tmp.z < -1) { label.style.visibility = 'hidden'; return false; }
     label.style.visibility = '';
-    label.style.transform = `translate3d(${((tmp.x * 0.5 + 0.5) * W) | 0}px, ${((-tmp.y * 0.5 + 0.5) * H - 4) | 0}px, 0) translate(-50%, -100%)`;
+    label.style.transform = `translate3d(${((tmp.x * 0.5 + 0.5) * W + 3) | 0}px, ${((-tmp.y * 0.5 + 0.5) * H - 2) | 0}px, 0) translate(0, -100%)`;
     return true;
   }
 
@@ -666,11 +725,12 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     controls.update();               // fires 'change' (and so dirty) only while moving
     if (!dirty) return;
     dirty = false;
+    scene.updateMatrixWorld();
     if (!camera.position.equals(lastCam)) { lastCam.copy(camera.position); siblingLines().forEach(redrawLink); }
 
     for (const n of model.nodes) {
       const label = labelFor.get(n);
-      up.set(0, n.size * 0.62 * n.obj.scale.x + 0.35, 0).add(n.obj.position);
+      up.copy(n.corner).applyMatrix4(n.obj.matrixWorld);
       if (!place(label, up)) continue;
       label.style.zIndex = String(1000 - Math.round(camera.position.distanceTo(n.obj.position)));
     }
