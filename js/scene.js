@@ -175,9 +175,24 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
 
   /* ---------- nodes: one colour; size = attention; cube or pyramid ---------- */
   const pickables = [];
+  const PYR_R = 0.85, PYR_H = 1.35;    // pyramid: base circumradius and height, × size
   const bodyGeometry = (n) => n.standalone
-    ? new THREE.ConeGeometry(n.size * 0.85, n.size * 1.35, 3, 1)      // triangular pyramid
+    ? new THREE.ConeGeometry(n.size * PYR_R, n.size * PYR_H, 3, 1)      // triangular pyramid
     : new THREE.BoxGeometry(n.size, n.size, n.size);
+  // Is a world point inside a project's body (at its resting size, ignoring hover)?
+  const local = new THREE.Vector3(), invQ = new THREE.Quaternion();
+  const EDGE_DIRS = [Math.PI / 3, Math.PI, (5 * Math.PI) / 3].map((a) => [Math.sin(a), Math.cos(a)]);
+  function inside(n, p) {
+    local.subVectors(p, n.pos).applyQuaternion(invQ.copy(n.obj.quaternion).invert()).divideScalar(n.k);
+    if (!n.standalone) {
+      const h = n.size / 2;
+      return Math.abs(local.x) <= h && Math.abs(local.y) <= h && Math.abs(local.z) <= h;
+    }
+    const ph = n.size * PYR_H;
+    if (local.y < -ph / 2 || local.y > ph / 2) return false;
+    const rho = n.size * PYR_R * (0.5 - local.y / ph);      // cross-section circumradius at this height
+    return EDGE_DIRS.every(([dx, dz]) => local.x * dx + local.z * dz <= rho / 2);
+  }
   function buildBody(n) {
     if (n.body) {
       n.obj.remove(n.body);
@@ -192,14 +207,10 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     pickables.push(face);
     const borderMat = fat({ color: NEON, linewidth: BORDER_PX * n.k, opacity: 1 });
     const border = new LineSegments2(new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(geo)), borderMat);
-    const s = n.size * 0.38;
-    const innerGeo = n.standalone ? new THREE.ConeGeometry(s * 0.72, s * 1.15, 3, 1) : new THREE.BoxGeometry(s, s, s);
-    const inner = new THREE.LineSegments(new THREE.EdgesGeometry(innerGeo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
-    if (!n.standalone) inner.rotation.set(0.6, 0.8, 0);
-    body.add(face, border, inner);
+    body.add(face, border);
     n.obj.add(body);
     Object.assign(n, { body, face, borderMat });
-    n.mats = [{ m: face.material, base: 0.08 }, { m: borderMat, base: 1 }, { m: inner.material, base: 0.6 }, n.haloMat];
+    n.mats = [{ m: face.material, base: 0.08 }, { m: borderMat, base: 1 }, n.haloMat];
   }
   for (const n of model.nodes) {
     n.size = n.isCore ? 4.4 : Math.max(1.6, 2.8 - n.rank * 0.05);
@@ -226,9 +237,25 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   const LINE_BASE = 0.7;
   const GAP_PX = 2.6;                // half the gap between the two strands of a sibling line
   const incident = new Map(model.nodes.map((n) => [n, []]));
-  const curvePts = (A, B) => {
+  // The curve from A's centre to B's centre, trimmed so it starts and ends
+  // where it crosses each project's surface.
+  const cp = new THREE.Vector3();
+  const curvePts = (a, b) => {
+    const A = a.pos, B = b.pos;
     const ctrl = A.clone().lerp(B, 0.5).add(new THREE.Vector3(0, A.distanceTo(B) * 0.2, 0));
-    return new THREE.QuadraticBezierCurve3(A, ctrl, B).getPoints(24);
+    const c = new THREE.QuadraticBezierCurve3(A, ctrl, B);
+    const edge = (n, lo, hi) => {          // lo is inside n, hi is outside
+      if (!inside(n, c.getPoint(lo, cp)) || inside(n, c.getPoint(hi, cp))) return lo;
+      for (let i = 0; i < 18; i++) {
+        const mid = (lo + hi) / 2;
+        if (inside(n, c.getPoint(mid, cp))) lo = mid; else hi = mid;
+      }
+      return hi;
+    };
+    const t0 = edge(a, 0, 0.5);
+    const t1 = edge(b, 1, 0.5);
+    if (t1 <= t0) return [c.getPoint(0.5), c.getPoint(0.5)];   // overlapping bodies
+    return Array.from({ length: 25 }, (_, i) => c.getPoint(t0 + ((t1 - t0) * i) / 24));
   };
   const flat = (pts) => pts.flatMap((p) => [p.x, p.y, p.z]);
   // A sibling line is two strands, offset sideways as seen from the camera,
@@ -236,7 +263,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
   const pxToWorld = (p) => camera.position.distanceTo(p) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 2 / H;
   const tA = new THREE.Vector3(), vA = new THREE.Vector3(), nA = new THREE.Vector3();
   function redrawLink(l) {
-    const pts = curvePts(l.a.pos, l.b.pos);
+    const pts = curvePts(l.a, l.b);
     if (l.kind === 'parent') { l.lines[0].geometry.setPositions(flat(pts)); return; }
     const left = [], right = [];
     pts.forEach((p, i) => {
@@ -414,6 +441,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     if (mode === 'shape') {
       n.standalone = !n.standalone;
       buildBody(n);
+      for (const l of incident.get(n)) redrawLink(l);
       justEdited = true;
       setTimeout(() => { justEdited = false; }, 0);
       saveDraft();
@@ -483,6 +511,7 @@ export async function startScene(model, { neighbours, shortName, statusLabel, la
     ev.preventDefault();
     ev.stopPropagation();
     n.k = THREE.MathUtils.clamp(n.k * (ev.deltaY < 0 ? 1.1 : 1 / 1.1), SIZE_MIN, SIZE_MAX);
+    for (const l of incident.get(n)) redrawLink(l);
     refreshFocus();
     clearTimeout(onWheel.t);
     onWheel.t = setTimeout(saveDraft, 250);
